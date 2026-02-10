@@ -29,7 +29,7 @@ const Hero = () => {
                 <div className="flex items-center gap-14">
                   <div>
                     <h2 className="max-w-[153px] font-semibold text-dark text-xl mb-20">
-                      <a href="#"> iPhone 14 Plus & 14 Pro Max </a>
+                      <a href="#"> Handcrafted Wooden Stool </a>
                     </h2>
 
                     <div>
@@ -37,7 +37,7 @@ const Hero = () => {
                         limited time offer
                       </p>
                       <span className="flex items-center gap-3">
-                        <span className="font-medium text-heading-5 text-red">
+                        <span className="font-medium text-heading-5 text-blue">
                           $699
                         </span>
                         <span className="font-medium text-2xl text-dark-4 line-through">
@@ -49,7 +49,7 @@ const Hero = () => {
 
                   <div>
                     <Image
-                      src="/images/hero/hero-02.png"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4EfLTmF0iVFQ3M8owFcbSbhnd0FtWtRb2y5h8EQEUNNcf47v95_ArQie8QPigUtgvtyOBDOD9NdOCyD0RP-M9oDaa83vQrPiVZoZEpOxJsjz4gzTqaa9QaaYpi0LG_MZsfgzvQyOENzqWZxK7hKraBl0pzGmIAWzegZ5rpS7VExVD6l11cnAIdJjE4cSXf7qH8uKJdEBKX-Q-osxpOTg5QlqOndgsfDwllc9YAfU1CcO099GPT3ssmFViQgTJFpsImlqWATDfbw"
                       alt="mobile image"
                       width={123}
                       height={161}
@@ -61,7 +61,7 @@ const Hero = () => {
                 <div className="flex items-center gap-14">
                   <div>
                     <h2 className="max-w-[153px] font-semibold text-dark text-xl mb-20">
-                      <a href="#"> Wireless Headphone </a>
+                      <a href="#"> Modern Floor Lamp </a>
                     </h2>
 
                     <div>
@@ -69,7 +69,7 @@ const Hero = () => {
                         limited time offer
                       </p>
                       <span className="flex items-center gap-3">
-                        <span className="font-medium text-heading-5 text-red">
+                        <span className="font-medium text-heading-5 text-blue">
                           $699
                         </span>
                         <span className="font-medium text-2xl text-dark-4 line-through">
@@ -81,10 +81,11 @@ const Hero = () => {
 
                   <div>
                     <Image
-                      src="/images/hero/hero-01.png"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfeli0CQ7JosMxTsLYWF0UdH9ipN81lLAHlKZoEBtn9rH4sAGGVXP_rUFSPttZtDsn5m7RxAc2o6rZKJC9b70KN8mgI16zIiR36uO_MoHi_MAirEM8zoPZlo-e33nfW2UIFEm0l0Y4uw7NbLA5UvHvIQuBEx0LJvbVxwCG7wn6vnZLIlC5Ig8XLjjioYVizxmZ6UZ7_mwV-RisXT355XUS-yg8gxDmNC4rfK3N4MJhqFhmEEHah5mjxIQ1Qn2eTwWeyPJFjjDmlg"
                       alt="mobile image"
-                      width={123}
-                      height={161}
+                      width={130}
+                      height={170}
+                      className=" rounded-lg"
                     />
                   </div>
                 </div>

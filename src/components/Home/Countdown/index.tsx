@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
-const CounDown = () => {
+const CountDown = () => {
   const [days, setDays] = useState(0);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
@@ -36,10 +36,10 @@ const CounDown = () => {
             </span>
 
             <h2 className="font-bold text-dark text-xl lg:text-heading-4 xl:text-heading-3 mb-3">
-              Enhance Your Music Experience
+              Enhance Your  Experience
             </h2>
 
-            <p>The Havit H206d is a wired PC headphone.</p>
+            <p>Lamp Sale</p>
 
             {/* <!-- Countdown timer --> */}
             <div
@@ -120,7 +120,7 @@ const CounDown = () => {
             height={482}
           />
           <Image
-            src="/images/countdown/countdown-01.png"
+            src="https://www.pngplay.com/wp-content/uploads/2/Lamp-PNG-Pic-Background.png"
             alt="product"
             className="hidden lg:block absolute right-4 xl:right-33 bottom-4 xl:bottom-10 -z-1"
             width={411}
@@ -132,4 +132,4 @@ const CounDown = () => {
   );
 };
 
-export default CounDown;
+export default CountDown;

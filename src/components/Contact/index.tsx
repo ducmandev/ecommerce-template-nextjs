@@ -33,7 +33,7 @@ const Contact = () => {
                         fill="#73122a"
                       />
                     </svg>
-                    Name: James Septimus
+                    Name: ....
                   </p>
 
                   <p className="flex items-center gap-4">
@@ -61,7 +61,7 @@ const Contact = () => {
                         fill="#73122a"
                       />
                     </svg>
-                    Phone: 1234 567890
+                    Phone: ....
                   </p>
 
                   <p className="flex gap-4">
@@ -80,7 +80,7 @@ const Contact = () => {
                         fill="#73122a"
                       />
                     </svg>
-                    Address: 7398 Smoke Ranch RoadLas Vegas, Nevada 89128
+                    Address: ....
                   </p>
                 </div>
               </div>

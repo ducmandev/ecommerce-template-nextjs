@@ -32,32 +32,32 @@ const ShopWithSidebar = () => {
 
   const categories = [
     {
-      name: "Desktop",
+      name: "Living Room",
       products: 10,
       isRefined: true,
     },
     {
-      name: "Laptop",
+      name: "Dining Tables",
       products: 12,
       isRefined: false,
     },
     {
-      name: "Monitor",
+      name: "Office Chair",
       products: 30,
       isRefined: false,
     },
     {
-      name: "UPS",
+      name: "Decorative Lights",
       products: 23,
       isRefined: false,
     },
     {
-      name: "Phone",
+      name: "Bedroom",
       products: 10,
       isRefined: false,
     },
     {
-      name: "Watch",
+      name: "Outdoor",
       products: 13,
       isRefined: false,
     },
@@ -160,7 +160,7 @@ const ShopWithSidebar = () => {
                   <CategoryDropdown categories={categories} />
 
                   {/* <!-- gender box --> */}
-                  <GenderDropdown genders={genders} />
+                  {/* <GenderDropdown genders={genders} /> */}
 
                   {/* // <!-- size box --> */}
                   <SizeDropdown />
