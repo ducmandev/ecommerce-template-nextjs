@@ -9,6 +9,7 @@ import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { resetQuickView } from "@/redux/features/quickView-slice";
 import { updateproductDetails } from "@/redux/features/product-details";
+import { useGetProductQuery } from "@/redux/services/productsApi";
 
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
@@ -19,6 +20,15 @@ const QuickViewModal = () => {
 
   // get the product data
   const product = useAppSelector((state) => state.quickViewReducer.value);
+
+  // Call API Kuzco khi modal mở (skip khi đóng để tránh call không cần thiết)
+  const {
+    data: kuzcoData,
+    isLoading: isKuzcoLoading,
+    isError: isKuzcoError,
+  } = useGetProductQuery(undefined, {
+    skip: !isModalOpen,
+  });
 
   const [activePreview, setActivePreview] = useState(0);
 
@@ -303,8 +313,10 @@ const QuickViewModal = () => {
               </div>
 
               <p>
-                Lorem Ipsum is simply dummy text of the printing and typesetting
-                industry. Lorem Ipsum has.
+                {/* Ưu tiên mô tả từ API Kuzco nếu có, fallback về text cũ */}
+                {kuzcoData?.products?.[0]?.body_html
+                  ? kuzcoData.products[0].body_html.replace(/<[^>]+>/g, "")
+                  : "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has."}
               </p>
 
               <div className="flex flex-wrap justify-between gap-5 mt-6 mb-7.5">
@@ -313,13 +325,31 @@ const QuickViewModal = () => {
                     Price
                   </h4>
 
-                  <span className="flex items-center gap-2">
-                    <span className="font-semibold text-dark text-xl xl:text-heading-4">
-                      ${product.discountedPrice}
+                  <span className="flex flex-col gap-1">
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold text-dark text-xl xl:text-heading-4">
+                        ${product.discountedPrice}
+                      </span>
+                      <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
+                        ${product.price}
+                      </span>
                     </span>
-                    <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
-                      ${product.price}
-                    </span>
+                    {isKuzcoLoading && (
+                      <span className="text-custom-xs text-dark-4">
+                        Loading external price...
+                      </span>
+                    )}
+                    {isKuzcoError && (
+                      <span className="text-custom-xs text-red">
+                        Failed to load external product info.
+                      </span>
+                    )}
+                    {kuzcoData?.products?.[0]?.variants?.[0]?.price && (
+                      <span className="text-custom-xs text-dark-2">
+                        Kuzco price: $
+                        {kuzcoData.products[0].variants[0].price}
+                      </span>
+                    )}
                   </span>
                 </div>
 
