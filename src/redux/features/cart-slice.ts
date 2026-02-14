@@ -7,18 +7,46 @@ type InitialState = {
 
 type CartItem = {
   id: number;
+  /** Tên sản phẩm (product title). */
   title: string;
+  /** Tên biến thể / sku title (nếu có). */
+  variantTitle?: string;
+  /** Giá đang áp dụng cho sku (variant.price). */
   price: number;
   discountedPrice: number;
   quantity: number;
+  /** SKU của sản phẩm hoặc biến thể (nếu có). */
+  sku?: string;
   imgs?: {
     thumbnails: string[];
     previews: string[];
   };
 };
 
+// Load cart from localStorage
+const loadCartFromStorage = (): CartItem[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const savedCart = localStorage.getItem("cart");
+    return savedCart ? JSON.parse(savedCart) : [];
+  } catch (error) {
+    console.error("Failed to load cart from localStorage:", error);
+    return [];
+  }
+};
+
+// Save cart to localStorage
+const saveCartToStorage = (items: CartItem[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("cart", JSON.stringify(items));
+  } catch (error) {
+    console.error("Failed to save cart to localStorage:", error);
+  }
+};
+
 const initialState: InitialState = {
-  items: [],
+  items: loadCartFromStorage(),
 };
 
 export const cart = createSlice({
@@ -26,9 +54,21 @@ export const cart = createSlice({
   initialState,
   reducers: {
     addItemToCart: (state, action: PayloadAction<CartItem>) => {
-      const { id, title, price, quantity, discountedPrice, imgs } =
-        action.payload;
-      const existingItem = state.items.find((item) => item.id === id);
+      const {
+        id,
+        sku,
+        title,
+        variantTitle,
+        price,
+        quantity,
+        discountedPrice,
+        imgs,
+      } = action.payload;
+      // Ưu tiên dùng SKU làm khóa để phân biệt các biến thể.
+      // Nếu không có SKU (trường hợp hiếm), mới fallback theo id sản phẩm.
+      const existingItem = state.items.find((item) =>
+        sku ? item.sku === sku : item.id === id
+      );
 
       if (existingItem) {
         existingItem.quantity += quantity;
@@ -36,31 +76,52 @@ export const cart = createSlice({
         state.items.push({
           id,
           title,
+          variantTitle,
           price,
           quantity,
           discountedPrice,
+          sku,
           imgs,
         });
       }
+      
+      // Save to localStorage
+      saveCartToStorage(state.items);
     },
-    removeItemFromCart: (state, action: PayloadAction<number>) => {
-      const itemId = action.payload;
-      state.items = state.items.filter((item) => item.id !== itemId);
+    removeItemFromCart: (
+      state,
+      action: PayloadAction<{ id: number; sku?: string }>
+    ) => {
+      const { id, sku } = action.payload;
+      state.items = state.items.filter((item) =>
+        sku ? item.sku !== sku : item.id !== id
+      );
+      
+      // Save to localStorage
+      saveCartToStorage(state.items);
     },
     updateCartItemQuantity: (
       state,
-      action: PayloadAction<{ id: number; quantity: number }>
+      action: PayloadAction<{ id: number; quantity: number; sku?: string }>
     ) => {
-      const { id, quantity } = action.payload;
-      const existingItem = state.items.find((item) => item.id === id);
+      const { id, quantity, sku } = action.payload;
+      const existingItem = state.items.find((item) =>
+        sku ? item.sku === sku : item.id === id
+      );
 
       if (existingItem) {
         existingItem.quantity = quantity;
       }
+      
+      // Save to localStorage
+      saveCartToStorage(state.items);
     },
 
     removeAllItemsFromCart: (state) => {
       state.items = [];
+      
+      // Save to localStorage
+      saveCartToStorage(state.items);
     },
   },
 });

@@ -1,10 +1,18 @@
+"use client";
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import ProductItem from "@/components/Common/ProductItem";
-import shopData from "@/components/Shop/shopData";
+import { useGetProductsQuery, mapShopProductToProduct } from "@/redux/services/shopApi";
 
 const NewArrival = () => {
+  // Fetch products from API - page 1, limit 8
+  const { data, isLoading, isError } = useGetProductsQuery({ page: 1, limit: 8 });
+
+  // Map API products to Product format
+  const products = data?.products 
+    ? data.products.map(mapShopProductToProduct)
+    : [];
+
   return (
     <section className="overflow-hidden pt-1">
       <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -31,7 +39,7 @@ const NewArrival = () => {
                   strokeLinecap="round"
                 />
               </svg>
-              {/* This Week’s */}
+              {/* This Week's */}
               <h2 className="font-semibold text-xl xl:text-heading-5 text-dark">
               New Arrivals
             </h2>
@@ -47,12 +55,30 @@ const NewArrival = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-7.5 gap-y-9">
-          {/* <!-- New Arrivals item --> */}
-          {shopData.map((item, key) => (
-            <ProductItem item={item} key={key} />
-          ))}
-        </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-20">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue"></div>
+            <p className="mt-3 text-dark-2">Loading products...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {isError && (
+          <div className="text-center py-20 text-red">
+            <p>Failed to load products. Please try again later.</p>
+          </div>
+        )}
+
+        {/* Products Grid */}
+        {!isLoading && !isError && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-7.5 gap-y-9">
+            {/* <!-- New Arrivals item --> */}
+            {products.map((item, key) => (
+              <ProductItem item={item} key={key} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

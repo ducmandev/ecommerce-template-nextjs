@@ -9,7 +9,7 @@ import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { resetQuickView } from "@/redux/features/quickView-slice";
 import { updateproductDetails } from "@/redux/features/product-details";
-import { useGetProductQuery } from "@/redux/services/productsApi";
+import { useGetProductBySlugQuery } from "@/redux/services/productsApi";
 
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
@@ -21,13 +21,9 @@ const QuickViewModal = () => {
   // get the product data
   const product = useAppSelector((state) => state.quickViewReducer.value);
 
-  // Call API Kuzco khi modal mở (skip khi đóng để tránh call không cần thiết)
-  const {
-    data: kuzcoData,
-    isLoading: isKuzcoLoading,
-    isError: isKuzcoError,
-  } = useGetProductQuery(undefined, {
-    skip: !isModalOpen,
+  // Call API product detail theo slug khi modal mở (nếu cần dùng thêm dữ liệu backend)
+  useGetProductBySlugQuery(product.slug as string, {
+    skip: !isModalOpen || !product.slug,
   });
 
   const [activePreview, setActivePreview] = useState(0);
@@ -313,10 +309,8 @@ const QuickViewModal = () => {
               </div>
 
               <p>
-                {/* Ưu tiên mô tả từ API Kuzco nếu có, fallback về text cũ */}
-                {kuzcoData?.products?.[0]?.body_html
-                  ? kuzcoData.products[0].body_html.replace(/<[^>]+>/g, "")
-                  : "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has."}
+                Lorem Ipsum is simply dummy text of the printing and
+                typesetting industry. Lorem Ipsum has.
               </p>
 
               <div className="flex flex-wrap justify-between gap-5 mt-6 mb-7.5">
@@ -334,22 +328,6 @@ const QuickViewModal = () => {
                         ${product.price}
                       </span>
                     </span>
-                    {isKuzcoLoading && (
-                      <span className="text-custom-xs text-dark-4">
-                        Loading external price...
-                      </span>
-                    )}
-                    {isKuzcoError && (
-                      <span className="text-custom-xs text-red">
-                        Failed to load external product info.
-                      </span>
-                    )}
-                    {kuzcoData?.products?.[0]?.variants?.[0]?.price && (
-                      <span className="text-custom-xs text-dark-2">
-                        Kuzco price: $
-                        {kuzcoData.products[0].variants[0].price}
-                      </span>
-                    )}
                   </span>
                 </div>
 

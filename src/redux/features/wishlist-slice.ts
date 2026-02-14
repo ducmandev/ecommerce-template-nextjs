@@ -17,8 +17,30 @@ type WishListItem = {
   };
 };
 
+// Load wishlist from localStorage
+const loadWishlistFromStorage = (): WishListItem[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const savedWishlist = localStorage.getItem("wishlist");
+    return savedWishlist ? JSON.parse(savedWishlist) : [];
+  } catch (error) {
+    console.error("Failed to load wishlist from localStorage:", error);
+    return [];
+  }
+};
+
+// Save wishlist to localStorage
+const saveWishlistToStorage = (items: WishListItem[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("wishlist", JSON.stringify(items));
+  } catch (error) {
+    console.error("Failed to save wishlist to localStorage:", error);
+  }
+};
+
 const initialState: InitialState = {
-  items: [],
+  items: loadWishlistFromStorage(),
 };
 
 export const wishlist = createSlice({
@@ -43,14 +65,23 @@ export const wishlist = createSlice({
           status,
         });
       }
+      
+      // Save to localStorage
+      saveWishlistToStorage(state.items);
     },
     removeItemFromWishlist: (state, action: PayloadAction<number>) => {
       const itemId = action.payload;
       state.items = state.items.filter((item) => item.id !== itemId);
+      
+      // Save to localStorage
+      saveWishlistToStorage(state.items);
     },
 
     removeAllItemsFromWishlist: (state) => {
       state.items = [];
+      
+      // Save to localStorage
+      saveWishlistToStorage(state.items);
     },
   },
 });

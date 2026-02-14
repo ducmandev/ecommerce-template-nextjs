@@ -200,12 +200,12 @@ const Header = () => {
                     </span>
                   </span>
 
-                  <div>
+                  <div className="min-w-[70px]">
                     <span className="block text-2xs text-dark-4 uppercase">
                       cart
                     </span>
                     <p className="font-medium text-custom-sm text-dark">
-                      ${totalPrice}
+                      ${totalPrice?.toFixed(2)}
                     </p>
                   </div>
                 </button>

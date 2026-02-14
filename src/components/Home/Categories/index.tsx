@@ -1,7 +1,7 @@
 "use client";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { useCallback, useRef, useEffect } from "react";
-import data from "./categoryData";
+import { useGetCategoriesQuery } from "@/redux/services/categoriesApi";
 import Image from "next/image";
 
 // Import Swiper styles
@@ -11,6 +11,10 @@ import SingleItem from "./SingleItem";
 
 const Categories = () => {
   const sliderRef = useRef(null);
+
+  // Fetch categories from API
+  const { data: apiData, isLoading, isError } = useGetCategoriesQuery();
+  const categories = apiData?.categories || [];
 
   const handlePrev = useCallback(() => {
     if (!sliderRef.current) return;
@@ -27,6 +31,25 @@ const Categories = () => {
       sliderRef.current.swiper.init();
     }
   }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <section className="overflow-hidden pt-17.5">
+        <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0 pb-15 border-b border-gray-3">
+          <div className="text-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue"></div>
+            <p className="mt-3 text-dark-2">Loading categories...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Error or empty state
+  if (isError || categories.length === 0) {
+    return null; // Or show error message
+  }
 
   return (
     <section className="overflow-hidden pt-17.5">
@@ -134,11 +157,22 @@ const Categories = () => {
               },
             }}
           >
-            {data.map((item, key) => (
-              <SwiperSlide key={key}>
-                <SingleItem item={item} />
-              </SwiperSlide>
-            ))}
+            {categories.map((category) => {
+              // Map API data to component format
+              const item = {
+                id: category.id,
+                title: category.name,
+                img: category.imageUrl,
+                slug: category.slug,
+                productCount: category.productCount,
+              };
+              
+              return (
+                <SwiperSlide key={category.id}>
+                  <SingleItem item={item} />
+                </SwiperSlide>
+              );
+            })}
           </Swiper>
         </div>
       </div>

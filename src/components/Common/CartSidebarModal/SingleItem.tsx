@@ -7,22 +7,42 @@ const SingleItem = ({ item, removeItemFromCart }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const handleRemoveFromCart = () => {
-    dispatch(removeItemFromCart(item.id));
+    dispatch(removeItemFromCart({ id: item.id, sku: item.sku }));
   };
 
+  const unitPrice = item.discountedPrice || item.price;
+
   return (
-    <div className="flex items-center justify-between gap-5">
+    <div className="flex items-center justify-start gap-2">
       <div className="w-full flex items-center gap-6">
         <div className="flex items-center justify-center rounded-[10px] bg-gray-3 max-w-[90px] w-full h-22.5">
-          <Image src={item.imgs?.thumbnails[0]} alt="product" width={100} height={100} />
+          <Image
+            src={item.imgs?.thumbnails[0]}
+            alt="product"
+            width={100}
+            height={100}
+          />
         </div>
 
-        <div>
+        <div className="max-w-[220px]">
           <h3 className="font-medium text-dark mb-1 ease-out duration-200 hover:text-blue">
             <a href="#"> {item.title} </a>
           </h3>
-          <p className="text-custom-sm">Price: ${item.discountedPrice}</p>
+          <p className="text-custom-sm">{item?.variantTitle}</p>
+
+          {/* Quantity + price info only (no controls) */}
+          <p className="text-custom-sm mt-1">
+            x{item.quantity}{" "}
+            <span className="text-blue font-medium ml-1">
+              ${unitPrice.toFixed(2)}
+            </span>
+          </p>
         </div>
+
+        {/* Total on the right for all quantities */}
+        <p className="text-xl text-blue font-medium ml-auto">
+          ${(unitPrice * item.quantity).toFixed(2)}
+        </p>
       </div>
 
       <button

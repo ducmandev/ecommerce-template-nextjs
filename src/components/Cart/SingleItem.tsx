@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 import {
@@ -9,25 +9,31 @@ import {
 import Image from "next/image";
 
 const SingleItem = ({ item }) => {
-  const [quantity, setQuantity] = useState(item.quantity);
-
   const dispatch = useDispatch<AppDispatch>();
 
   const handleRemoveFromCart = () => {
-    dispatch(removeItemFromCart(item.id));
+    dispatch(removeItemFromCart({ id: item.id, sku: item.sku }));
   };
 
   const handleIncreaseQuantity = () => {
-    setQuantity(quantity + 1);
-    dispatch(updateCartItemQuantity({ id: item.id, quantity: quantity + 1 }));
+    dispatch(
+      updateCartItemQuantity({
+        id: item.id,
+        sku: item.sku,
+        quantity: item.quantity + 1,
+      })
+    );
   };
 
   const handleDecreaseQuantity = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
-      dispatch(updateCartItemQuantity({ id: item.id, quantity: quantity - 1 }));
-    } else {
-      return;
+    if (item.quantity > 1) {
+      dispatch(
+        updateCartItemQuantity({
+          id: item.id,
+          sku: item.sku,
+          quantity: item.quantity - 1,
+        })
+      );
     }
   };
 
@@ -76,7 +82,7 @@ const SingleItem = ({ item }) => {
           </button>
 
           <span className="flex items-center justify-center w-16 h-11.5 border-x border-gray-4">
-            {quantity}
+            {item.quantity}
           </span>
 
           <button
@@ -106,7 +112,9 @@ const SingleItem = ({ item }) => {
       </div>
 
       <div className="min-w-[200px]">
-        <p className="text-dark">${item.discountedPrice * quantity}</p>
+        <p className="text-dark">
+          ${item.discountedPrice * item.quantity}
+        </p>
       </div>
 
       <div className="min-w-[50px] flex justify-end">

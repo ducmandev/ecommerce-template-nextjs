@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { useGetCountdownDealQuery } from "@/redux/services/homeApi";
 
 const CountDown = () => {
   const [days, setDays] = useState(0);
@@ -8,7 +9,12 @@ const CountDown = () => {
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(0);
 
-  const deadline = "December, 31, 2024";
+  // Fetch countdown deal data
+  const { data, isLoading, isError } = useGetCountdownDealQuery();
+  const deal = data?.deal;
+
+  // Sử dụng endsAt từ API nếu có, nếu không dùng default
+  const deadline = deal?.endsAt || "December, 31, 2024";
 
   const getTime = () => {
     const time = Date.parse(deadline) - Date.now();
@@ -20,26 +26,52 @@ const CountDown = () => {
   };
 
   useEffect(() => {
-    // @ts-ignore
-    const interval = setInterval(() => getTime(deadline), 1000);
-
+    const interval = setInterval(() => getTime(), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [deadline]);
+
+  // Data từ API hoặc fallback
+  const title = deal?.title || "Enhance Your Experience";
+  const subtitle = deal?.subtitle || "Lamp Sale";
+  const productName = deal?.product?.title || "";
+  const productPrice = deal?.product?.price || 0;
+  const productDiscountedPrice = deal?.product?.discountedPrice;
+  const productImage = deal?.product?.thumbnailUrl || "https://www.pngplay.com/wp-content/uploads/2/Lamp-PNG-Pic-Background.png";
+  const productLink = deal?.product?.slug ? `/products/${deal.product.slug}` : "#";
 
   return (
     <section className="overflow-hidden py-20">
       <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
-        <div className="relative overflow-hidden z-1 rounded-lg bg-[#D0E9F3] p-4 sm:p-7.5 lg:p-10 xl:p-15">
-          <div className="max-w-[422px] w-full">
+        <div className="relative overflow-hidden z-1 rounded-lg bg-[#D0E9F3] p-4 sm:p-7.5 lg:p-10 xl:p-15 w-full">
+          <div className="max-w-[520px] w-full">
             <span className="block font-medium text-custom-1 text-blue mb-2.5">
-              Don’t Miss!!
+              Don't Miss!!
             </span>
 
             <h2 className="font-bold text-dark text-xl lg:text-heading-4 xl:text-heading-3 mb-3">
-              Enhance Your  Experience
+              {title}
             </h2>
 
-            <p>Lamp Sale</p>
+            <p className="text-dark-2 mb-4">{subtitle}</p>
+
+            {/* Product Info */}
+            {productName && (
+              <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 mb-5 border border-white/80">
+                <h3 className="font-semibold text-dark text-lg mb-2 line-clamp-2">
+                  {productName}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-bold text-blue">
+                    ${productPrice.toFixed(2)}
+                  </span>
+                  {productDiscountedPrice && productDiscountedPrice < productPrice && (
+                    <span className="text-lg text-dark-4 line-through">
+                      ${productDiscountedPrice.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* <!-- Countdown timer --> */}
             <div
@@ -104,7 +136,7 @@ const CountDown = () => {
             {/* <!-- Countdown timer ends --> */}
 
             <a
-              href="#"
+              href={productLink}
               className="inline-flex font-medium text-custom-sm text-white bg-blue py-3 px-9.5 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5"
             >
               Check it Out!
@@ -120,9 +152,9 @@ const CountDown = () => {
             height={482}
           />
           <Image
-            src="https://www.pngplay.com/wp-content/uploads/2/Lamp-PNG-Pic-Background.png"
-            alt="product"
-            className="hidden lg:block absolute right-4 xl:right-33 bottom-4 xl:bottom-10 -z-1"
+            src={productImage}
+            alt={deal?.product?.title || "product"}
+            className="hidden lg:block absolute right-2 xl:right-33 bottom-4 xl:bottom-10 -z-1 rounded-[50%]"
             width={411}
             height={376}
           />
