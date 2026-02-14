@@ -2,10 +2,17 @@ import { selectTotalPrice } from "@/redux/features/cart-slice";
 import { useAppSelector } from "@/redux/store";
 import React from "react";
 import { useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
 
 const OrderSummary = () => {
+  const router = useRouter();
   const cartItems = useAppSelector((state) => state.cartReducer.items);
   const totalPrice = useSelector(selectTotalPrice);
+
+  const handleProceedToCheckout = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push("/checkout");
+  };
 
   return (
     <div className="lg:max-w-[455px] w-full">
@@ -29,12 +36,22 @@ const OrderSummary = () => {
           {/* <!-- product item --> */}
           {cartItems.map((item, key) => (
             <div key={key} className="flex items-center justify-between py-5 border-b border-gray-3">
-              <div>
-                <p className="text-dark">{item.title}</p>
+              <div className="max-w-[280px]">
+                <p className="text-dark">
+                  {item.title}
+                  {item.variantTitle && (
+                    <span className="text-dark-4 text-sm block">
+                      {item.variantTitle}
+                    </span>
+                  )}
+                  <span className="text-dark-4 text-sm block">
+                    ${item.discountedPrice.toFixed(2)} x {item.quantity}
+                  </span>
+                </p>
               </div>
               <div>
                 <p className="text-dark text-right">
-                  ${item.discountedPrice * item.quantity}
+                  ${(item.discountedPrice * item.quantity).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -47,16 +64,17 @@ const OrderSummary = () => {
             </div>
             <div>
               <p className="font-medium text-lg text-dark text-right">
-                ${totalPrice}
+                ${totalPrice.toFixed(2)}
               </p>
             </div>
           </div>
 
           {/* <!-- checkout button --> */}
           <button
-            disabled={true}
-            type="submit"
-            className="w-full flex justify-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5"
+            onClick={handleProceedToCheckout}
+            disabled={cartItems.length === 0}
+            type="button"
+            className="w-full flex justify-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:bg-gray-4 disabled:cursor-not-allowed mt-7.5"
           >
             Process to Checkout
           </button>

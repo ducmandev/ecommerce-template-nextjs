@@ -1,134 +1,115 @@
 import React, { useState } from "react";
 import Image from "next/image";
 
-const PaymentMethod = () => {
-  const [payment, setPayment] = useState("bank");
+interface PaymentMethodProps {
+  selected?: string;
+  onChange?: (method: string) => void;
+}
+
+const PaymentMethod: React.FC<PaymentMethodProps> = ({ 
+  selected = "bank",
+  onChange 
+}) => {
+  const [payment, setPayment] = useState(selected);
+
+  const handlePaymentChange = (method: string) => {
+    setPayment(method);
+    if (onChange) onChange(method);
+  };
+
+  const paymentMethods = [
+    {
+      id: 'bank',
+      name: 'Direct bank transfer',
+      icon: '/images/checkout/bank.svg',
+      iconWidth: 29,
+      iconHeight: 12,
+    },
+    {
+      id: 'cash',
+      name: 'Cash on delivery',
+      icon: '/images/checkout/cash.svg',
+      iconWidth: 21,
+      iconHeight: 21,
+    },
+    {
+      id: 'paypal',
+      name: 'PayPal',
+      icon: '/images/checkout/paypal.svg',
+      iconWidth: 75,
+      iconHeight: 20,
+    },
+  ];
+
   return (
     <div className="bg-white shadow-1 rounded-[10px] mt-7.5">
       <div className="border-b border-gray-3 py-5 px-4 sm:px-8.5">
-        <h3 className="font-medium text-xl text-dark">Payment Method</h3>
+        <h3 className="font-medium text-xl text-dark">Select Payment Method</h3>
+        <p className="text-sm text-dark-4 mt-1">Choose your preferred payment method</p>
       </div>
 
       <div className="p-4 sm:p-8.5">
-        <div className="flex flex-col gap-3">
-          <label
-            htmlFor="bank"
-            className="flex cursor-pointer select-none items-center gap-4"
-          >
-            <div className="relative">
-              <input
-                type="checkbox"
-                name="bank"
-                id="bank"
-                className="sr-only"
-                onChange={() => setPayment("bank")}
-              />
-              <div
-                className={`flex h-4 w-4 items-center justify-center rounded-full ${
-                  payment === "bank"
-                    ? "border-4 border-blue"
-                    : "border border-gray-4"
-                }`}
-              ></div>
-            </div>
-
-            <div
-              className={`rounded-md border-[0.5px] py-3.5 px-5 ease-out duration-200 hover:bg-gray-2 hover:border-transparent hover:shadow-none ${
-                payment === "bank"
-                  ? "border-transparent bg-gray-2"
-                  : " border-gray-4 shadow-1"
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {paymentMethods.map((method) => (
+            <label
+              key={method.id}
+              htmlFor={method.id}
+              className={`relative cursor-pointer flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all duration-200 ${
+                payment === method.id
+                  ? 'border-blue bg-blue/5 shadow-md'
+                  : 'border-gray-3 hover:border-gray-4 hover:shadow-sm'
               }`}
             >
-              <div className="flex items-center">
-                <div className="pr-2.5">
-                  <Image src="/images/checkout/bank.svg" alt="bank" width={29} height={12}/>
-                </div>
-
-                <div className="border-l border-gray-4 pl-2.5">
-                  <p>Direct bank transfer</p>
-                </div>
-              </div>
-            </div>
-          </label>
-
-          <label
-            htmlFor="cash"
-            className="flex cursor-pointer select-none items-center gap-4"
-          >
-            <div className="relative">
               <input
-                type="checkbox"
-                name="cash"
-                id="cash"
+                type="radio"
+                name="payment"
+                id={method.id}
                 className="sr-only"
-                onChange={() => setPayment("cash")}
+                checked={payment === method.id}
+                onChange={() => handlePaymentChange(method.id)}
               />
-              <div
-                className={`flex h-4 w-4 items-center justify-center rounded-full ${
-                  payment === "cash"
-                    ? "border-4 border-blue"
-                    : "border border-gray-4"
-                }`}
-              ></div>
-            </div>
 
-            <div
-              className={`rounded-md border-[0.5px] py-3.5 px-5 ease-out duration-200 hover:bg-gray-2 hover:border-transparent hover:shadow-none min-w-[240px] ${
-                payment === "cash"
-                  ? "border-transparent bg-gray-2"
-                  : " border-gray-4 shadow-1"
-              }`}
-            >
-              <div className="flex items-center">
-                <div className="pr-2.5">
-                  <Image src="/images/checkout/cash.svg" alt="cash" width={21} height={21} />
+              {/* Check Icon */}
+              {payment === method.id && (
+                <div className="absolute top-3 right-3">
+                  <div className="w-5 h-5 rounded-full bg-blue flex items-center justify-center">
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
                 </div>
+              )}
 
-                <div className="border-l border-gray-4 pl-2.5">
-                  <p>Cash on delivery</p>
-                </div>
+              {/* Payment Icon */}
+              <div className="mb-3 flex items-center justify-center h-12">
+                <Image
+                  src={method.icon}
+                  alt={method.name}
+                  width={method.iconWidth}
+                  height={method.iconHeight}
+                />
               </div>
-            </div>
-          </label>
 
-          <label
-            htmlFor="paypal"
-            className="flex cursor-pointer select-none items-center gap-4"
-          >
-            <div className="relative">
-              <input
-                type="checkbox"
-                name="paypal"
-                id="paypal"
-                className="sr-only"
-                onChange={() => setPayment("paypal")}
-              />
-              <div
-                className={`flex h-4 w-4 items-center justify-center rounded-full ${
-                  payment === "paypal"
-                    ? "border-4 border-blue"
-                    : "border border-gray-4"
+              {/* Payment Name */}
+              <p
+                className={`text-sm font-medium text-center ${
+                  payment === method.id ? 'text-blue' : 'text-dark'
                 }`}
-              ></div>
-            </div>
-            <div
-              className={`rounded-md border-[0.5px] py-3.5 px-5 ease-out duration-200 hover:bg-gray-2 hover:border-transparent hover:shadow-none min-w-[240px] ${
-                payment === "paypal"
-                  ? "border-transparent bg-gray-2"
-                  : " border-gray-4 shadow-1"
-              }`}
-            >
-              <div className="flex items-center">
-                <div className="pr-2.5">
-                  <Image src="/images/checkout/paypal.svg" alt="paypal" width={75} height={20}/>
-                </div>
-
-                <div className="border-l border-gray-4 pl-2.5">
-                  <p>Paypal</p>
-                </div>
-              </div>
-            </div>
-          </label>
+              >
+                {method.name}
+              </p>
+            </label>
+          ))}
         </div>
       </div>
     </div>

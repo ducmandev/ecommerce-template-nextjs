@@ -4,7 +4,7 @@ import Categories from "./Categories";
 import NewArrival from "./NewArrivals";
 import PromoBanner from "./PromoBanner";
 import BestSeller from "./BestSeller";
-import CounDown from "./Countdown";
+import CountDown from "./Countdown";
 // import Testimonials from "./Testimonials";
 // import Newsletter from "../Common/Newsletter";
 
@@ -13,10 +13,11 @@ const Home = () => {
     <main>
       <Hero />
       <Categories />
+      <CountDown />
       <NewArrival />
       <PromoBanner />
-      <BestSeller />
-      <CounDown />
+      {/* <BestSeller /> */}
+
       {/* <Testimonials /> */}
       {/* <Newsletter /> */}
     </main>

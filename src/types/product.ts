@@ -1,4 +1,5 @@
 export type Product = {
+  slug?: string;
   title: string;
   reviews: number;
   price: number;

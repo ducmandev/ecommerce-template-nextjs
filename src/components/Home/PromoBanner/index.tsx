@@ -9,16 +9,15 @@ const PromoBanner = () => {
         <div className="relative z-1 overflow-hidden rounded-lg bg-[#F5F5F7] py-12.5 lg:py-17.5 xl:py-22.5 px-4 sm:px-7.5 lg:px-14 xl:px-19 mb-7.5">
           <div className="max-w-[550px] w-full">
             <span className="block font-medium text-xl text-dark mb-3">
-              Apple iPhone 14 Plus
+              Modern Floor Lamp
             </span>
 
-            <h2 className="font-bold text-xl lg:text-heading-4 xl:text-heading-3 text-dark mb-5">
+            <h2 className="font-bold text-xl lg:text-heading-4 xl:text-heading-3 text-blue mb-5">
               UP TO 30% OFF
             </h2>
 
             <p>
-              iPhone 14 has the same superspeedy chip that’s in iPhone 13 Pro,
-              A15 Bionic, with a 5‑core GPU, powers all the latest features.
+              Elevate your living space with our new collection of modern floor lamps, perfect for modern homes.
             </p>
 
             <a
@@ -30,7 +29,7 @@ const PromoBanner = () => {
           </div>
 
           <Image
-            src="/images/promo/promo-01.png"
+            src="https://www.pngplay.com/wp-content/uploads/2/Lamp-PNG-HD-Quality.png"
             alt="promo img"
             className="absolute bottom-0 right-4 lg:right-26 -z-1"
             width={274}
@@ -42,7 +41,7 @@ const PromoBanner = () => {
           {/* <!-- promo banner small --> */}
           <div className="relative z-1 overflow-hidden rounded-lg bg-[#DBF4F3] py-10 xl:py-16 px-4 sm:px-7.5 xl:px-10">
             <Image
-              src="/images/promo/promo-02.png"
+              src="https://www.pngplay.com/wp-content/uploads/2/Lamp-Download-Free-PNG.png"
               alt="promo img"
               className="absolute top-1/2 -translate-y-1/2 left-3 sm:left-10 -z-1"
               width={241}
@@ -51,11 +50,11 @@ const PromoBanner = () => {
 
             <div className="text-right">
               <span className="block text-lg text-dark mb-1.5">
-                Foldable Motorised Treadmill
+                Modern Floor Lamp 1
               </span>
 
               <h2 className="font-bold text-xl lg:text-heading-4 text-dark mb-2.5">
-                Workout At Home
+                At Your Home
               </h2>
 
               <p className="font-semibold text-custom-1 text-teal">
@@ -74,7 +73,7 @@ const PromoBanner = () => {
           {/* <!-- promo banner small --> */}
           <div className="relative z-1 overflow-hidden rounded-lg bg-[#FFECE1] py-10 xl:py-16 px-4 sm:px-7.5 xl:px-10">
             <Image
-              src="/images/promo/promo-03.png"
+              src="https://www.pngplay.com/wp-content/uploads/2/Lamp-Free-PNG.png"
               alt="promo img"
               className="absolute top-1/2 -translate-y-1/2 right-3 sm:right-8.5 -z-1"
               width={200}
@@ -83,7 +82,7 @@ const PromoBanner = () => {
 
             <div>
               <span className="block text-lg text-dark mb-1.5">
-                Apple Watch Ultra
+                Modern Floor Lamp 2
               </span>
 
               <h2 className="font-bold text-xl lg:text-heading-4 text-dark mb-2.5">
@@ -91,8 +90,8 @@ const PromoBanner = () => {
               </h2>
 
               <p className="max-w-[285px] text-custom-sm">
-                The aerospace-grade titanium case strikes the perfect balance of
-                everything.
+                  The aerospace-grade titanium case strikes the perfect balance of
+                  everything.
               </p>
 
               <a

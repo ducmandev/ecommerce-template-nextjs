@@ -1,28 +1,41 @@
-import { useState } from 'react';
-import RangeSlider from 'react-range-slider-input';
-import 'react-range-slider-input/dist/style.css';
+"use client";
+import { useState } from "react";
 
-const PriceDropdown = () => {
+type PriceDropdownProps = {
+  priceRange?: { min?: number; max?: number };
+  onPriceChange?: (range: { min?: number; max?: number }) => void;
+};
+
+const PriceDropdown = ({ priceRange = {}, onPriceChange }: PriceDropdownProps) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
+  const [minPrice, setMinPrice] = useState(priceRange.min?.toString() || "");
+  const [maxPrice, setMaxPrice] = useState(priceRange.max?.toString() || "");
 
-  const [selectedPrice, setSelectedPrice] = useState({
-    from: 0,
-    to: 100,
-  });
+  const handleApply = () => {
+    if (!onPriceChange) return;
+    
+    onPriceChange({
+      min: minPrice ? parseFloat(minPrice) : undefined,
+      max: maxPrice ? parseFloat(maxPrice) : undefined,
+    });
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
       <div
-        onClick={() => setToggleDropdown(!toggleDropdown)}
-        className="cursor-pointer flex items-center justify-between py-3 pl-6 pr-5.5"
+        onClick={(e) => {
+          e.preventDefault();
+          setToggleDropdown(!toggleDropdown);
+        }}
+        className={`cursor-pointer flex items-center justify-between py-3 pl-6 pr-5.5 ${
+          toggleDropdown && "shadow-filter"
+        }`}
       >
         <p className="text-dark">Price</p>
         <button
-          onClick={() => setToggleDropdown(!toggleDropdown)}
-          id="price-dropdown-btn"
           aria-label="button for price dropdown"
           className={`text-dark ease-out duration-200 ${
-            toggleDropdown && 'rotate-180'
+            toggleDropdown && "rotate-180"
           }`}
         >
           <svg
@@ -43,43 +56,39 @@ const PriceDropdown = () => {
         </button>
       </div>
 
-      {/* // <!-- dropdown menu --> */}
-      <div className={`p-6 ${toggleDropdown ? 'block' : 'hidden'}`}>
-        <div id="pricingOne">
-          <div className="price-range">
-            <RangeSlider
-              id="range-slider-gradient"
-              className="margin-lg"
-              step={'any'}
-              onInput={(e) =>
-                setSelectedPrice({
-                  from: Math.floor(e[0]),
-                  to: Math.ceil(e[1]),
-                })
-              }
+      {/* dropdown menu */}
+      <div
+        className={`flex-col gap-4 py-6 pl-6 pr-5.5 ${
+          toggleDropdown ? "flex" : "hidden"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <input
+              type="number"
+              placeholder="Min"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-3 rounded-md focus:border-blue focus:outline-none"
             />
-
-            <div className="price-amount flex items-center justify-between pt-4">
-              <div className="text-custom-xs text-dark-4 flex rounded border border-gray-3/80">
-                <span className="block border-r border-gray-3/80 px-2.5 py-1.5">
-                  $
-                </span>
-                <span id="minAmount" className="block px-3 py-1.5">
-                  {selectedPrice.from}
-                </span>
-              </div>
-
-              <div className="text-custom-xs text-dark-4 flex rounded border border-gray-3/80">
-                <span className="block border-r border-gray-3/80 px-2.5 py-1.5">
-                  $
-                </span>
-                <span id="maxAmount" className="block px-3 py-1.5">
-                  {selectedPrice.to}
-                </span>
-              </div>
-            </div>
+          </div>
+          <span className="text-dark-4">-</span>
+          <div className="flex-1">
+            <input
+              type="number"
+              placeholder="Max"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-3 rounded-md focus:border-blue focus:outline-none"
+            />
           </div>
         </div>
+        <button
+          onClick={handleApply}
+          className="w-full px-4 py-2 bg-blue text-white rounded-md hover:bg-opacity-90 transition-all"
+        >
+          Apply
+        </button>
       </div>
     </div>
   );

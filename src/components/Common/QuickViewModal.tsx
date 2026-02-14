@@ -9,6 +9,7 @@ import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { resetQuickView } from "@/redux/features/quickView-slice";
 import { updateproductDetails } from "@/redux/features/product-details";
+import { useGetProductBySlugQuery } from "@/redux/services/productsApi";
 
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
@@ -19,6 +20,11 @@ const QuickViewModal = () => {
 
   // get the product data
   const product = useAppSelector((state) => state.quickViewReducer.value);
+
+  // Call API product detail theo slug khi modal mở (nếu cần dùng thêm dữ liệu backend)
+  useGetProductBySlugQuery(product.slug as string, {
+    skip: !isModalOpen || !product.slug,
+  });
 
   const [activePreview, setActivePreview] = useState(0);
 
@@ -303,8 +309,8 @@ const QuickViewModal = () => {
               </div>
 
               <p>
-                Lorem Ipsum is simply dummy text of the printing and typesetting
-                industry. Lorem Ipsum has.
+                Lorem Ipsum is simply dummy text of the printing and
+                typesetting industry. Lorem Ipsum has.
               </p>
 
               <div className="flex flex-wrap justify-between gap-5 mt-6 mb-7.5">
@@ -313,12 +319,14 @@ const QuickViewModal = () => {
                     Price
                   </h4>
 
-                  <span className="flex items-center gap-2">
-                    <span className="font-semibold text-dark text-xl xl:text-heading-4">
-                      ${product.discountedPrice}
-                    </span>
-                    <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
-                      ${product.price}
+                  <span className="flex flex-col gap-1">
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold text-dark text-xl xl:text-heading-4">
+                        ${product.discountedPrice}
+                      </span>
+                      <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
+                        ${product.price}
+                      </span>
                     </span>
                   </span>
                 </div>

@@ -37,11 +37,12 @@ const RecentlyViewdItems = () => {
                   height={17}
                   alt="icon"
                 />
-                Categories
-              </span>
-              <h2 className="font-semibold text-xl xl:text-heading-5 text-dark">
-                Browse by Category
+                {/* recommendations */}
+                <h2 className="font-semibold text-xl xl:text-heading-5 text-dark">
+                Recommendations
               </h2>
+              </span>
+
             </div>
 
             <div className="flex items-center gap-3">

@@ -1,23 +1,46 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 
-const ColorsDropdwon = () => {
+type ColorsDropdownProps = {
+  selectedColors?: string[];
+  onSelectionChange?: (colors: string[]) => void;
+};
+
+const ColorsDropdwon = ({ selectedColors = [], onSelectionChange }: ColorsDropdownProps) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
-  const [activeColor, setActiveColor] = useState("blue");
 
-  const colors = ["red", "blue", "orange", "pink", "purple"];
+  const colors = [
+    { name: "Red", value: "red", hex: "#FF0000" },
+    { name: "Blue", value: "blue", hex: "#0000FF" },
+    { name: "Yellow", value: "yellow", hex: "#FFFF00" },
+    { name: "Orange", value: "orange", hex: "#FFA500" },
+    { name: "Purple", value: "purple", hex: "#800080" },
+  ];
+
+  const handleToggleColor = (colorValue: string) => {
+    if (!onSelectionChange) return;
+    
+    const newSelection = selectedColors.includes(colorValue)
+      ? selectedColors.filter(c => c !== colorValue)
+      : [...selectedColors, colorValue];
+    
+    onSelectionChange(newSelection);
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
       <div
-        onClick={() => setToggleDropdown(!toggleDropdown)}
+        onClick={(e) => {
+          e.preventDefault();
+          setToggleDropdown(!toggleDropdown);
+        }}
         className={`cursor-pointer flex items-center justify-between py-3 pl-6 pr-5.5 ${
           toggleDropdown && "shadow-filter"
         }`}
       >
         <p className="text-dark">Colors</p>
         <button
-          aria-label="button for colors dropdown"
+          aria-label="button for color dropdown"
           className={`text-dark ease-out duration-200 ${
             toggleDropdown && "rotate-180"
           }`}
@@ -40,39 +63,46 @@ const ColorsDropdwon = () => {
         </button>
       </div>
 
-      {/* <!-- dropdown menu --> */}
+      {/* dropdown menu */}
       <div
         className={`flex-wrap gap-2.5 p-6 ${
           toggleDropdown ? "flex" : "hidden"
         }`}
       >
-        {colors.map((color, key) => (
-          <label
-            key={key}
-            htmlFor={color}
-            className="cursor-pointer select-none flex items-center"
+        {colors.map((color) => (
+          <button
+            key={color.value}
+            onClick={(e) => {
+              e.preventDefault();
+              handleToggleColor(color.value);
+            }}
+            aria-label={`select ${color.name}`}
+            className={`relative w-8 h-8 rounded-full border-2 ${
+              selectedColors.includes(color.value)
+                ? "border-dark"
+                : "border-transparent"
+            }`}
+            style={{ backgroundColor: color.hex }}
           >
-            <div className="relative">
-              <input
-                type="radio"
-                name="color"
-                id={color}
-                className="sr-only"
-                onChange={() => setActiveColor(color)}
-              />
-              <div
-                className={`flex items-center justify-center w-5.5 h-5.5 rounded-full ${
-                  activeColor === color && "border"
-                }`}
-                style={{ borderColor: `${color}` }}
+            {selectedColors.includes(color.value) && (
+              <svg
+                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                width="12"
+                height="12"
+                viewBox="0 0 10 10"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <span
-                  className="block w-3 h-3 rounded-full"
-                  style={{ backgroundColor: `${color}` }}
-                ></span>
-              </div>
-            </div>
-          </label>
+                <path
+                  d="M8.33317 2.5L3.74984 7.08333L1.6665 5"
+                  stroke="white"
+                  strokeWidth="1.94437"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
         ))}
       </div>
     </div>

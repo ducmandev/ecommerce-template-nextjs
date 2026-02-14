@@ -1,15 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { useGetCategoriesQuery } from "@/redux/services/categoriesApi";
 
-const CategoryItem = ({ category }) => {
-  const [selected, setSelected] = useState(false);
+type CategoryItemProps = {
+  category: {
+    name: string;
+    products: number;
+    slug: string;
+  };
+  selected: boolean;
+  onToggle: () => void;
+};
+
+const CategoryItem = ({ category, selected, onToggle }: CategoryItemProps) => {
   return (
     <button
       className={`${
         selected && "text-blue"
       } group flex items-center justify-between ease-out duration-200 hover:text-blue `}
-      onClick={() => setSelected(!selected)}
+      onClick={onToggle}
     >
       <div className="flex items-center gap-2">
         <div
@@ -49,8 +59,33 @@ const CategoryItem = ({ category }) => {
   );
 };
 
-const CategoryDropdown = ({ categories }) => {
+type CategoryDropdownProps = {
+  selectedCategories?: string[];
+  onSelectionChange?: (categories: string[]) => void;
+};
+
+const CategoryDropdown = ({ selectedCategories = [], onSelectionChange }: CategoryDropdownProps) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
+  
+  // Fetch categories from API
+  const { data, isLoading, isError } = useGetCategoriesQuery();
+  
+  // Map API data to component format
+  const categories = data?.categories.map(cat => ({
+    name: cat.name,
+    products: cat.productCount,
+    slug: cat.slug,
+  })) || [];
+
+  const handleToggleCategory = (slug: string) => {
+    if (!onSelectionChange) return;
+    
+    const newSelection = selectedCategories.includes(slug)
+      ? selectedCategories.filter(s => s !== slug)
+      : [...selectedCategories, slug];
+    
+    onSelectionChange(newSelection);
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
@@ -95,8 +130,25 @@ const CategoryDropdown = ({ categories }) => {
           toggleDropdown ? "flex" : "hidden"
         }`}
       >
-        {categories.map((category, key) => (
-          <CategoryItem key={key} category={category} />
+        {isLoading && (
+          <div className="text-center text-dark-4 text-sm">
+            Loading categories...
+          </div>
+        )}
+        
+        {isError && (
+          <div className="text-center text-red text-sm">
+            Failed to load categories
+          </div>
+        )}
+        
+        {!isLoading && !isError && categories.map((category, key) => (
+          <CategoryItem 
+            key={key} 
+            category={category} 
+            selected={selectedCategories.includes(category.slug)}
+            onToggle={() => handleToggleCategory(category.slug)}
+          />
         ))}
       </div>
     </div>
