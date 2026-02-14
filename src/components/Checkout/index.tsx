@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import Image from "next/image";
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import Breadcrumb from "../Common/Breadcrumb";
 import StepIndicator from "./StepIndicator";
 import Login from "./Login";
@@ -11,7 +12,7 @@ import ShippingMethod from "./ShippingMethod";
 import PaymentMethod from "./PaymentMethod";
 import Coupon from "./Coupon";
 import Billing from "./Billing";
-import PayPalButton from "./PayPalButton";
+import PayPalButtonsOnly from "./PayPalButtonsOnly";
 import { useAppSelector } from "@/redux/store";
 import { useSelector } from "react-redux";
 import { selectTotalPrice, removeAllItemsFromCart } from "@/redux/features/cart-slice";
@@ -35,8 +36,8 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const steps = [
-    { number: 1, title: "SHIPPING ADDRESS" },
-    { number: 2, title: "PAYMENT & SHIPPING" },
+    { number: 1, title: "SHIPPING & PAYMENT METHOD" },
+    { number: 2, title: "COMPLETE PAYMENT" },
     { number: 3, title: "REVIEW ORDER" },
   ];
 
@@ -92,12 +93,11 @@ const Checkout = () => {
       setOrderId(data.orderId);
       setOrderCreated(true);
 
-      // If not PayPal, redirect to success immediately
-      if (paymentMethod !== 'paypal') {
-        dispatch(removeAllItemsFromCart());
-        router.push(`/order-success?orderId=${data.orderId}`);
+      // Auto move to Step 2 after order created (for PayPal and Bank)
+      if (paymentMethod === 'paypal' || paymentMethod === 'bank') {
+        setCurrentStep(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      // If PayPal, buttons will show in Step 2
     } catch (error: any) {
       console.error('Checkout error:', error);
       alert(error.message || 'Failed to create order. Please try again.');
@@ -106,7 +106,7 @@ const Checkout = () => {
     }
   };
 
-  const handlePayPalSuccess = (details: any) => {
+  const handlePayPalSuccess = useCallback((details: any) => {
     console.log('Payment successful:', details);
     
     // Clear cart
@@ -120,7 +120,7 @@ const Checkout = () => {
     setTimeout(() => {
       router.push(`/order-success?orderId=${orderId}&transactionId=${details.transactionId}`);
     }, 2000);
-  };
+  }, [dispatch, orderId, router]);
 
   return (
     <>
@@ -134,77 +134,14 @@ const Checkout = () => {
             <div className="flex flex-col lg:flex-row gap-7.5 xl:gap-11">
               {/* <!-- checkout left --> */}
               <div className="lg:max-w-[670px] w-full">
-                {/* Step 1: Shipping Information */}
+                {/* Step 1: Shipping Information + Payment Method Selection */}
                 {currentStep === 1 && (
                   <div className="space-y-7.5">
                     <Login />
                     <Billing />
                     <Shipping />
-
-                    {/* Navigation Buttons */}
-                    <div className="flex justify-end gap-4">
-                      <button
-                        type="button"
-                        onClick={handleNext}
-                        className="flex items-center justify-center font-medium text-white bg-blue py-3 px-8 rounded-md ease-out duration-200 hover:bg-blue-dark"
-                      >
-                        Continue to Payment
-                        <svg
-                          className="ml-2 w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Payment Method */}
-                {currentStep === 2 && (
-                  <div className="space-y-7.5">
                     <ShippingMethod />
                     <PaymentMethod selected={paymentMethod} onChange={setPaymentMethod} />
-                    
-                    {/* <Coupon /> */}
-
-                    {paymentMethod === 'paypal' && orderCreated && (
-                      <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
-                        <div className="mb-4 p-4 bg-blue/5 border border-blue/20 rounded-lg">
-                          <p className="text-sm text-dark font-medium mb-1">
-                            Complete your payment with PayPal
-                          </p>
-                          <p className="text-xs text-dark-4">
-                            Click the PayPal button below to securely complete your purchase.
-                          </p>
-                        </div>
-
-                        <PayPalButton
-                          orderId={orderId}
-                          amount={total}
-                          onSuccess={handlePayPalSuccess}
-                        />
-
-                        {/* Reset button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOrderCreated(false);
-                            setOrderId('');
-                          }}
-                          className="w-full flex justify-center font-medium text-dark bg-white border border-gray-3 py-3 px-6 rounded-md ease-out duration-200 hover:bg-gray-2 mt-4"
-                        >
-                          ← Change Payment Method
-                        </button>
-                      </div>
-                    )}
 
                     {/* Order Notes */}
                     <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
@@ -220,8 +157,292 @@ const Checkout = () => {
                       />
                     </div>
 
-                    {/* PayPal Buttons (show if PayPal selected and order created) */}
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-end gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (paymentMethod === 'cash') {
+                            // Cash goes to step 3 for review
+                            setCurrentStep(3);
+                          } else {
+                            // Bank/PayPal need to create order first
+                            handleCheckout();
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center justify-center font-medium text-white bg-blue py-3 px-8 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:bg-gray-4 disabled:cursor-not-allowed"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <svg
+                              className="animate-spin mr-2 h-5 w-5 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            Continue to Payment
+                            <svg
+                              className="ml-2 w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
+                {/* Step 2: Complete Payment */}
+                {currentStep === 2 && (
+                  <div className="space-y-7.5">
+                    {/* PayPal Payment - Load Provider ONLY when needed */}
+                    {paymentMethod === 'paypal' && (
+                      <PayPalScriptProvider
+                        options={{
+                          clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
+                          currency: 'USD',
+                          intent: 'capture',
+                          components: 'buttons',
+                        }}
+                      >
+                        <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
+                          <h3 className="font-semibold text-2xl text-dark mb-6">
+                            Complete PayPal Payment
+                          </h3>
+                          
+                          <div className="mb-4 p-4 bg-blue/5 border border-blue/20 rounded-lg">
+                            <p className="text-sm text-dark font-medium mb-1">
+                              Complete your payment with PayPal
+                            </p>
+                            <p className="text-xs text-dark-4">
+                              Click the PayPal button below to securely complete your purchase.
+                            </p>
+                          </div>
+
+                          <PayPalButtonsOnly
+                            orderId={orderId}
+                            amount={total}
+                            onSuccess={handlePayPalSuccess}
+                          />
+
+                          {/* Back button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOrderCreated(false);
+                              setOrderId('');
+                              setCurrentStep(1);
+                            }}
+                            className="w-full flex justify-center items-center font-medium text-dark bg-white border border-gray-3 py-3 px-6 rounded-md ease-out duration-200 hover:bg-gray-2 mt-4"
+                          >
+                            <svg
+                              className="mr-2 w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                            ← Back to Shipping
+                          </button>
+                        </div>
+                      </PayPalScriptProvider>
+                    )}
+
+                    {/* Bank Transfer Payment */}
+                    {paymentMethod === 'bank' && (
+                      <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
+                        <h3 className="font-semibold text-2xl text-dark mb-6">
+                          Bank Transfer Details
+                        </h3>
+
+                        <div className="p-4 bg-green/10 border border-green/20 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-6 h-6 bg-green rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-4 h-4 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-green mb-1">
+                                Bank Transfer Details
+                              </p>
+                              <p className="text-xs text-dark-4 mb-3">
+                                Please transfer the amount to the following account:
+                              </p>
+                              <div className="bg-white p-3 rounded border border-gray-3 text-xs space-y-1">
+                                <p><span className="font-medium">Bank Name:</span> Example Bank</p>
+                                <p><span className="font-medium">Account Number:</span> 1234567890</p>
+                                <p><span className="font-medium">Account Name:</span> Your Company Name</p>
+                                <p><span className="font-medium">Amount:</span> ${(total + total * 0.1).toFixed(2)}</p>
+                                <p><span className="font-medium">Reference:</span> {orderId}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Confirm button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log('=== BANK TRANSFER CONFIRMED (TEST MODE) ===');
+                            console.log('Payment Method: Bank Transfer');
+                            console.log('Order ID:', orderId);
+                            console.log('Total Amount:', (total + total * 0.1).toFixed(2));
+                            console.log('Cart Items:', cartItems);
+                            console.log('Would redirect to:', `/order-success?orderId=${orderId}`);
+                            console.log('Cart cleared:', 'YES');
+                            console.log('===========================================');
+                            
+                            dispatch(removeAllItemsFromCart());
+                            // COMMENTED FOR TESTING: router.push(`/order-success?orderId=${orderId}`);
+                            alert(`✅ Bank Transfer Confirmed!\n\nOrder ID: ${orderId}\nAmount: $${(total + total * 0.1).toFixed(2)}\n\nCheck console for details.\n\n(Redirect disabled for testing)`);
+                          }}
+                          className="w-full flex justify-center items-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark mt-4"
+                        >
+                          <svg
+                            className="mr-2 w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          I&apos;ve Made the Transfer
+                        </button>
+
+                        {/* Back button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOrderCreated(false);
+                            setOrderId('');
+                            setCurrentStep(1);
+                          }}
+                          className="w-full flex justify-center items-center font-medium text-dark bg-white border border-gray-3 py-3 px-6 rounded-md ease-out duration-200 hover:bg-gray-2 mt-4"
+                        >
+                          <svg
+                            className="mr-2 w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 19l-7-7 7-7"
+                            />
+                          </svg>
+                          ← Back to Shipping
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 3: Review Order (Cash on Delivery only) */}
+                {currentStep === 3 && (
+                  <div className="space-y-7.5">
+                    {/* Order Review */}
+                    <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
+                      <h3 className="font-medium text-xl text-dark mb-6">Order Review</h3>
+
+                      {/* Shipping Info Summary */}
+                      <div className="mb-6 pb-6 border-b border-gray-3">
+                        <h4 className="font-medium text-dark mb-3">Shipping Information</h4>
+                        <p className="text-dark-4 text-sm">
+                          All shipping details confirmed
+                        </p>
+                      </div>
+
+                      {/* Payment Method Summary */}
+                      <div className="mb-6 pb-6 border-b border-gray-3">
+                        <h4 className="font-medium text-dark mb-3">Payment Method</h4>
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-2 rounded-lg flex items-center justify-center text-2xl">
+                            💵
+                          </div>
+                          <div>
+                            <p className="font-medium text-dark">Cash on Delivery</p>
+                            <p className="text-sm text-dark-4">
+                              Pay when you receive your order
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Order Items */}
+                      <div>
+                        <h4 className="font-medium text-dark mb-3">Order Items</h4>
+                        <div className="space-y-3">
+                          {cartItems.map((item, key) => (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between p-3 bg-gray-1 rounded-lg"
+                            >
+                              <div className="flex-1">
+                                <p className="text-dark font-medium">{item.title}</p>
+                                {item.variantTitle && (
+                                  <p className="text-sm text-dark-4">{item.variantTitle}</p>
+                                )}
+                                <p className="text-sm text-dark-4">Qty: {item.quantity}</p>
+                              </div>
+                              <p className="font-medium text-dark">
+                                ${(item.discountedPrice * item.quantity).toFixed(2)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Navigation Buttons */}
                     <div className="flex justify-between gap-4">
@@ -243,108 +464,32 @@ const Checkout = () => {
                             d="M15 19l-7-7 7-7"
                           />
                         </svg>
-                        Back to Shipping
+                        Back to Info
                       </button>
-                      
-                      {/* For PayPal: show Continue button to create order */}
-                      {/* For other methods: show Review Order button */}
-                      {!orderCreated && (
-                        <button
-                          type="button"
-                          onClick={paymentMethod === 'paypal' ? handleCheckout : handleNext}
-                          disabled={isProcessing}
-                          className="flex items-center justify-center font-medium text-white bg-blue py-3 px-8 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:bg-gray-4 disabled:cursor-not-allowed"
-                        >
-                          {isProcessing ? (
-                            <>
-                              <svg
-                                className="animate-spin mr-2 h-5 w-5 text-white"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                              >
-                                <circle
-                                  className="opacity-25"
-                                  cx="12"
-                                  cy="12"
-                                  r="10"
-                                  stroke="currentColor"
-                                  strokeWidth="4"
-                                />
-                                <path
-                                  className="opacity-75"
-                                  fill="currentColor"
-                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                />
-                              </svg>
-                              Processing...
-                            </>
-                          ) : paymentMethod === 'paypal' ? (
-                            'Continue'
-                          ) : (
-                            <>
-                              Review Order
-                              <svg
-                                className="ml-2 w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5l7 7-7 7"
-                                />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
 
-                {/* Step 3: Confirmation */}
-                {currentStep === 3 && (
-                  <div className="space-y-7.5">
-                    {/* Success Message (for PayPal after payment) */}
-                    {paymentMethod === 'paypal' && (
-                      <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
-                        <div className="flex flex-col items-center text-center py-8">
-                          {/* Success Icon */}
-                          <div className="w-20 h-20 bg-green/10 rounded-full flex items-center justify-center mb-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('=== ORDER SUCCESS (TEST MODE) ===');
+                          console.log('Payment Method:', paymentMethod);
+                          console.log('Order ID: (will be created)');
+                          console.log('Total:', total);
+                          console.log('Cart Items:', cartItems);
+                          console.log('Would redirect to:', `/order-success`);
+                          console.log('Cart cleared:', 'YES');
+                          console.log('=================================');
+                          
+                          dispatch(removeAllItemsFromCart());
+                          // COMMENTED FOR TESTING: Create order then redirect
+                          alert(`✅ Cash Order Confirmed!\n\nCheck console for details.\n\n(Redirect disabled for testing)`);
+                        }}
+                        disabled={cartItems.length === 0 || isProcessing}
+                        className="flex items-center justify-center font-medium text-white bg-blue py-3 px-8 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:bg-gray-4 disabled:cursor-not-allowed"
+                      >
+                        {isProcessing ? (
+                          <>
                             <svg
-                              className="w-12 h-12 text-green"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-
-                          <h3 className="text-2xl font-semibold text-dark mb-2">
-                            Payment Successful!
-                          </h3>
-                          <p className="text-dark-4 mb-4">
-                            Your payment has been processed successfully.
-                          </p>
-                          <p className="text-sm text-dark-4">
-                            Order ID: <span className="font-medium text-dark">{orderId}</span>
-                          </p>
-                          <p className="text-xs text-dark-4 mt-4">
-                            Redirecting to confirmation page...
-                          </p>
-
-                          {/* Loading spinner */}
-                          <div className="mt-6">
-                            <svg
-                              className="animate-spin h-8 w-8 text-blue mx-auto"
+                              className="animate-spin mr-2 h-5 w-5 text-white"
                               fill="none"
                               viewBox="0 0 24 24"
                             >
@@ -362,75 +507,10 @@ const Checkout = () => {
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               />
                             </svg>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Order Review (for non-PayPal methods) */}
-                    {paymentMethod !== 'paypal' && (
-                      <>
-                        <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
-                          <h3 className="font-medium text-xl text-dark mb-6">Order Review</h3>
-
-                          {/* Shipping Info Summary */}
-                          <div className="mb-6 pb-6 border-b border-gray-3">
-                            <h4 className="font-medium text-dark mb-3">Shipping Information</h4>
-                            <p className="text-dark-4 text-sm">
-                              All shipping details confirmed
-                            </p>
-                          </div>
-
-                          {/* Payment Method Summary */}
-                          <div className="mb-6 pb-6 border-b border-gray-3">
-                            <h4 className="font-medium text-dark mb-3">Payment Method</h4>
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gray-2 rounded-lg flex items-center justify-center text-2xl">
-                                {paymentMethod === "bank" && "🏦"}
-                                {paymentMethod === "cash" && "💵"}
-                              </div>
-                              <div>
-                                <p className="font-medium text-dark capitalize">{paymentMethod}</p>
-                                <p className="text-sm text-dark-4">
-                                  {paymentMethod === "bank" && "Direct Bank Transfer"}
-                                  {paymentMethod === "cash" && "Cash on Delivery"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Order Items */}
-                          <div>
-                            <h4 className="font-medium text-dark mb-3">Order Items</h4>
-                            <div className="space-y-3">
-                              {cartItems.map((item, key) => (
-                                <div
-                                  key={key}
-                                  className="flex items-center justify-between p-3 bg-gray-1 rounded-lg"
-                                >
-                                  <div className="flex-1">
-                                    <p className="text-dark font-medium">{item.title}</p>
-                                    {item.variantTitle && (
-                                      <p className="text-sm text-dark-4">{item.variantTitle}</p>
-                                    )}
-                                    <p className="text-sm text-dark-4">Qty: {item.quantity}</p>
-                                  </div>
-                                  <p className="font-medium text-dark">
-                                    ${(item.discountedPrice * item.quantity).toFixed(2)}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Navigation Buttons */}
-                        <div className="flex justify-between gap-4">
-                          <button
-                            type="button"
-                            onClick={handlePrevious}
-                            className="flex items-center justify-center font-medium text-dark bg-white border border-gray-3 py-3 px-8 rounded-md ease-out duration-200 hover:bg-gray-2"
-                          >
+                            Processing...
+                          </>
+                        ) : (
+                          <>
                             <svg
                               className="mr-2 w-5 h-5"
                               fill="none"
@@ -441,63 +521,14 @@ const Checkout = () => {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M15 19l-7-7 7-7"
+                                d="M5 13l4 4L19 7"
                               />
                             </svg>
-                            Back to Payment
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={handleCheckout}
-                            disabled={cartItems.length === 0 || isProcessing}
-                            className="flex items-center justify-center font-medium text-white bg-blue py-3 px-8 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:bg-gray-4 disabled:cursor-not-allowed"
-                          >
-                            {isProcessing ? (
-                              <>
-                                <svg
-                                  className="animate-spin mr-2 h-5 w-5 text-white"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  />
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  />
-                                </svg>
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                <svg
-                                  className="mr-2 w-5 h-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                                Complete Order
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                            Complete Order
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
