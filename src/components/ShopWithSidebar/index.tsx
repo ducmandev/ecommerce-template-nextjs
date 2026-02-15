@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import CustomSelect from "./CustomSelect";
 import CategoryDropdown from "./CategoryDropdown";
+import BrandDropdown from "./BrandDropdown";
 import GenderDropdown from "./GenderDropdown";
 import SizeDropdown from "./SizeDropdown";
 import ColorsDropdwon from "./ColorsDropdwon";
@@ -29,19 +30,27 @@ const ShopWithSidebar = () => {
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<{ min?: number; max?: number }>({});
-  const [sortBy, setSortBy] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("best-selling");
+  const [searchName, setSearchName] = useState<string>("");
 
-  // Đọc category từ URL params khi component mount
+  // Đọc filters từ URL params khi component mount / URL change
   useEffect(() => {
     const categoryParam = searchParams.get("category");
-    if (categoryParam) {
-      // Set selected categories từ URL params
-      const categories = categoryParam.split(",");
-      setSelectedCategories(categories);
-    }
+    const brandParam = searchParams.get("brand");
+    const nameParam = searchParams.get("name");
+    const sortParam = searchParams.get("sort");
+
+    const categories = categoryParam ? categoryParam.split(",") : [];
+    const brands = brandParam ? brandParam.split(",") : [];
+    setSelectedCategories(categories);
+    setSelectedBrands(brands);
+    setSearchName(nameParam?.trim() || "");
+    if (sortParam != null && sortParam !== "") setSortBy(sortParam);
+    setPage(1);
   }, [searchParams]);
 
   // Reset page when filters change
@@ -52,6 +61,11 @@ const ShopWithSidebar = () => {
 
   const handleSizeChange = (sizes: string[]) => {
     setSelectedSizes(sizes);
+    setPage(1);
+  };
+
+  const handleBrandChange = (brands: string[]) => {
+    setSelectedBrands(brands);
     setPage(1);
   };
 
@@ -67,30 +81,36 @@ const ShopWithSidebar = () => {
 
   const handleClearFilters = () => {
     setSelectedCategories([]);
+    setSelectedBrands([]);
     setSelectedSizes([]);
     setSelectedColors([]);
     setPriceRange({});
-    setSortBy("");
+    setSortBy("best-selling");
+    setSearchName("");
     setPage(1);
   };
 
-  const hasActiveFilters = 
+  const hasActiveFilters =
     selectedCategories.length > 0 ||
+    selectedBrands.length > 0 ||
     selectedSizes.length > 0 ||
     selectedColors.length > 0 ||
     priceRange.min !== undefined ||
     priceRange.max !== undefined ||
-    sortBy !== "";
+    (sortBy !== "" && sortBy !== "best-selling") ||
+    searchName !== "";
 
   const { data, isLoading, isError } = useGetShopProductsQuery({
     page,
     limit: LIMIT,
     category: selectedCategories.length > 0 ? selectedCategories.join(",") : undefined,
+    brand: selectedBrands.length > 0 ? selectedBrands.join(",") : undefined,
     size: selectedSizes.length > 0 ? selectedSizes.join(",") : undefined,
     color: selectedColors.length > 0 ? selectedColors.join(",") : undefined,
     minPrice: priceRange.min,
     maxPrice: priceRange.max,
     sort: sortBy || undefined,
+    name: searchName || undefined,
   });
 
   const products: Product[] = useMemo(() => {
@@ -112,10 +132,13 @@ const ShopWithSidebar = () => {
     }
   };
 
-  const options = [
-    { label: "Latest Products", value: "0" },
-    { label: "Best Selling", value: "1" },
-    { label: "Old Products", value: "2" },
+  // Giá trị gửi API (Sort) | Ý nghĩa | Cách sắp xếp backend
+  const SORT_OPTIONS = [
+    { label: "Best sellinging", value: "best-selling" }, // IsBestSeller giảm dần → CreatedAt giảm dần
+    { label: "Price ascending", value: "price-asc" }, // Price tăng dần (rẻ → đắt)
+    { label: "Price descending", value: "price-desc" }, // Price giảm dần (đắt → rẻ)
+    { label: "A-Z", value: "a-z" }, // Title tăng dần theo alphabet
+    { label: "Newest", value: "newest" }, // CreatedAt giảm dần (mới nhất trước)
   ];
 
   const categories = [
@@ -240,7 +263,14 @@ const ShopWithSidebar = () => {
                   <div className="bg-white shadow-1 rounded-lg py-4 px-5">
                     <div className="flex items-center justify-between">
                       <p>Filters:</p>
-                      <button className="text-blue">Clean All</button>
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        disabled={!hasActiveFilters}
+                        className="text-blue disabled:text-dark-4 disabled:cursor-not-allowed"
+                      >
+                        Clean All
+                      </button>
                     </div>
                   </div>
 
@@ -248,6 +278,12 @@ const ShopWithSidebar = () => {
                   <CategoryDropdown 
                     selectedCategories={selectedCategories}
                     onSelectionChange={handleCategoryChange}
+                  />
+
+                  {/* <!-- brand box --> */}
+                  <BrandDropdown
+                    selectedBrands={selectedBrands}
+                    onSelectionChange={handleBrandChange}
                   />
 
                   {/* <!-- gender box --> */}
@@ -281,7 +317,14 @@ const ShopWithSidebar = () => {
                 <div className="flex items-center justify-between">
                   {/* <!-- top bar left --> */}
                   <div className="flex flex-wrap items-center gap-4">
-                    <CustomSelect options={options} />
+                    <CustomSelect
+                      options={SORT_OPTIONS}
+                      value={sortBy}
+                      onChange={(v) => {
+                        setSortBy(v);
+                        setPage(1);
+                      }}
+                    />
 
                     <p>
                       {isLoading ? (

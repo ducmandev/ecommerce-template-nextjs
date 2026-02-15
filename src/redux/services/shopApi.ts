@@ -90,12 +90,13 @@ export type ProductFilterParams = {
   minPrice?: number;
   maxPrice?: number;
   sort?: string;
+  name?: string;
 };
 
 export const shopApi = api.injectEndpoints({
   endpoints: (build) => ({
     getShopProducts: build.query<ShopProductsResponse, ProductFilterParams>({
-      query: ({ page = 1, limit = 9, category, brand, color, size, minPrice, maxPrice, sort }) => {
+      query: ({ page = 1, limit = 9, category, brand, color, size, minPrice, maxPrice, sort, name }) => {
         const params = new URLSearchParams();
         params.append("Page", String(page));
         params.append("Limit", String(limit));
@@ -106,6 +107,7 @@ export const shopApi = api.injectEndpoints({
         if (minPrice !== undefined) params.append("MinPrice", String(minPrice));
         if (maxPrice !== undefined) params.append("MaxPrice", String(maxPrice));
         if (sort) params.append("Sort", sort);
+        if (name) params.append("Name", name);
         return `shop/products?${params.toString()}`;
       },
     }),

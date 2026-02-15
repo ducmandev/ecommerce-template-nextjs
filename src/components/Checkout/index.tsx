@@ -24,7 +24,7 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const cartItems = useAppSelector((state) => state.cartReducer.items);
   const subtotal = useSelector(selectTotalPrice);
-  const total = subtotal + SHIPPING_FEE;
+  const total = subtotal /* + SHIPPING_FEE */;
 
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -35,11 +35,79 @@ const Checkout = () => {
   const [orderId, setOrderId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Form validation
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    companyName: "",
+    country: "Australia",
+    address: "",
+    addressTwo: "",
+    town: "",
+    phone: "",
+    email: "",
+    shippingMethod: "free",
+    notes: "",
+  });
+
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [showErrors, setShowErrors] = useState(false);
+
   const steps = [
     { number: 1, title: "SHIPPING & PAYMENT METHOD" },
     { number: 2, title: "COMPLETE PAYMENT" },
     { number: 3, title: "REVIEW ORDER" },
   ];
+
+  // Validation function
+  const validateForm = () => {
+    const errors: { [key: string]: string } = {};
+
+    // Required fields
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required";
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    }
+    if (!formData.address.trim()) {
+      errors.address = "Street address is required";
+    }
+    if (!formData.town.trim()) {
+      errors.town = "Town/City is required";
+    }
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^\+?[\d\s-()]+$/.test(formData.phone)) {
+      errors.phone = "Please enter a valid phone number";
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Email address is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -137,10 +205,201 @@ const Checkout = () => {
                 {/* Step 1: Shipping Information + Payment Method Selection */}
                 {currentStep === 1 && (
                   <div className="space-y-7.5">
+                    {/* Error Summary */}
+                    {showErrors && Object.keys(formErrors).length > 0 && (
+                      <div className="bg-red/10 border border-red/20 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-6 h-6 bg-red rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-red mb-1">
+                              Please fix the following errors:
+                            </p>
+                            <ul className="text-sm text-red space-y-1">
+                              {Object.entries(formErrors).map(([field, error]) => (
+                                <li key={field}>• {error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <Login />
-                    <Billing />
-                    <Shipping />
-                    <ShippingMethod />
+                    
+                    {/* Billing details with validation */}
+                    <div className="mt-9">
+                      <h2 className="font-medium text-dark text-xl sm:text-2xl mb-5.5">
+                        Billing details
+                      </h2>
+
+                      <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
+                        <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 mb-5">
+                          <div className="w-full">
+                            <label htmlFor="firstName" className="block mb-2.5">
+                              First Name <span className="text-red">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="firstName"
+                              id="firstName"
+                              value={formData.firstName}
+                              onChange={handleInputChange}
+                              placeholder="John"
+                              className={`rounded-md border ${
+                                showErrors && formErrors.firstName ? 'border-red' : 'border-gray-3'
+                              } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                                showErrors && formErrors.firstName ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                              }`}
+                            />
+                            {showErrors && formErrors.firstName && (
+                              <p className="text-red text-sm mt-1">{formErrors.firstName}</p>
+                            )}
+                          </div>
+
+                          <div className="w-full">
+                            <label htmlFor="lastName" className="block mb-2.5">
+                              Last Name <span className="text-red">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="lastName"
+                              id="lastName"
+                              value={formData.lastName}
+                              onChange={handleInputChange}
+                              placeholder="Doe"
+                              className={`rounded-md border ${
+                                showErrors && formErrors.lastName ? 'border-red' : 'border-gray-3'
+                              } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                                showErrors && formErrors.lastName ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                              }`}
+                            />
+                            {showErrors && formErrors.lastName && (
+                              <p className="text-red text-sm mt-1">{formErrors.lastName}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="companyName" className="block mb-2.5">
+                            Company Name
+                          </label>
+                          <input
+                            type="text"
+                            name="companyName"
+                            id="companyName"
+                            value={formData.companyName}
+                            onChange={handleInputChange}
+                            className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                          />
+                        </div>
+
+
+
+                        <div className="mb-5">
+                          <label htmlFor="address" className="block mb-2.5">
+                            Street Address <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            id="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            placeholder="House number and street name"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.address ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.address ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.address && (
+                            <p className="text-red text-sm mt-1">{formErrors.address}</p>
+                          )}
+
+                          <div className="mt-5">
+                            <input
+                              type="text"
+                              name="addressTwo"
+                              id="addressTwo"
+                              value={formData.addressTwo}
+                              onChange={handleInputChange}
+                              placeholder="Apartment, suite, unit, etc. (optional)"
+                              className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="town" className="block mb-2.5">
+                            Town/ City <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="town"
+                            id="town"
+                            value={formData.town}
+                            onChange={handleInputChange}
+                            className={`rounded-md border ${
+                              showErrors && formErrors.town ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.town ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.town && (
+                            <p className="text-red text-sm mt-1">{formErrors.town}</p>
+                          )}
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="phone" className="block mb-2.5">
+                            Phone <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="phone"
+                            id="phone"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            placeholder="+1 234 567 8900"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.phone ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.phone ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.phone && (
+                            <p className="text-red text-sm mt-1">{formErrors.phone}</p>
+                          )}
+                        </div>
+
+                        <div className="mb-5.5">
+                          <label htmlFor="email" className="block mb-2.5">
+                            Email Address <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="example@email.com"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.email ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.email ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.email && (
+                            <p className="text-red text-sm mt-1">{formErrors.email}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
                     <PaymentMethod selected={paymentMethod} onChange={setPaymentMethod} />
 
                     {/* Order Notes */}
@@ -152,6 +411,8 @@ const Checkout = () => {
                         name="notes"
                         id="notes"
                         rows={5}
+                        value={formData.notes}
+                        onChange={handleInputChange}
                         placeholder="Notes about your order, e.g. special notes for delivery."
                         className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full p-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                       />
@@ -162,9 +423,23 @@ const Checkout = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          // Validate form first
+                          setShowErrors(true);
+                          if (!validateForm()) {
+                            // Scroll to first error
+                            const firstErrorField = Object.keys(formErrors)[0];
+                            const element = document.getElementById(firstErrorField);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              element.focus();
+                            }
+                            return;
+                          }
+
                           if (paymentMethod === 'cash') {
                             // Cash goes to step 3 for review
                             setCurrentStep(3);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                           } else {
                             // Bank/PayPal need to create order first
                             handleCheckout();
@@ -609,7 +884,7 @@ const Checkout = () => {
                       </div>
 
                       {/* Shipping */}
-                      <div className="flex items-center justify-between text-dark-4">
+                      {/* <div className="flex items-center justify-between text-dark-4">
                         <p>Shipping</p>
                         <p className="font-medium">
                           {SHIPPING_FEE > 0 ? (
@@ -618,13 +893,13 @@ const Checkout = () => {
                             <span className="text-green">Free</span>
                           )}
                         </p>
-                      </div>
+                      </div> */}
 
                       {/* Tax */}
-                      <div className="flex items-center justify-between text-dark-4">
+                      {/* <div className="flex items-center justify-between text-dark-4">
                         <p>Tax</p>
                         <p className="font-medium">${(total * 0.1).toFixed(2)}</p>
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Total */}
@@ -632,7 +907,7 @@ const Checkout = () => {
                       <div className="flex items-center justify-between">
                         <p className="text-xl font-semibold text-dark">Total</p>
                         <p className="text-2xl font-bold text-red">
-                          ${(total + total * 0.1).toFixed(2)}
+                          ${(total).toFixed(2)}
                         </p>
                       </div>
                     </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { AppDispatch, useAppSelector } from "@/redux/store";
@@ -62,6 +63,7 @@ function mapProductToCartItem(
 }
 
 export default function ProductDetail( {slug}) {
+  const router = useRouter();
   const [previewImg, setPreviewImg] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<BackendVariant | null>(
     null
@@ -114,6 +116,12 @@ export default function ProductDetail( {slug}) {
   const handleAddToCart = () => {
     if (!product || !selected) return;
     dispatch(addItemToCart(mapProductToCartItem(product, selected, quantity)));
+  };
+
+  const handleBuyNow = () => {
+    if (!product || !selected ) return;
+    dispatch(addItemToCart(mapProductToCartItem(product, selected, quantity)));
+    router.push("/checkout");
   };
 
   const tabs = [
@@ -353,6 +361,15 @@ export default function ProductDetail( {slug}) {
                   className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark"
                 >
                   Add to Cart
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  // disabled={!isAvailable}
+                  className="inline-flex font-medium text-white bg-dark py-3 px-7 rounded-md ease-out duration-200 hover:bg-opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Buy Now
                 </button>
 
                 <Link

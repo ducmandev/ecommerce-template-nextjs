@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { useModalContext } from "@/app/context/QuickViewModalContext";
 import { AppDispatch, useAppSelector } from "@/redux/store";
@@ -7,50 +7,154 @@ import { addItemToCart } from "@/redux/features/cart-slice";
 import { useDispatch } from "react-redux";
 import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
-import { resetQuickView } from "@/redux/features/quickView-slice";
 import { updateproductDetails } from "@/redux/features/product-details";
-import { useGetProductBySlugQuery } from "@/redux/services/productsApi";
+import {
+  BackendProduct,
+  BackendVariant,
+  useGetProductBySlugQuery,
+} from "@/redux/services/productsApi";
+
+function mapBackendProductToCartItem(
+  product: BackendProduct,
+  variant: BackendVariant | null,
+  quantity: number
+) {
+  const imgs =
+    product.images?.length || product.thumbnails?.length
+      ? {
+          thumbnails: product.thumbnails?.length
+            ? product.thumbnails
+            : product.images,
+          previews: product.images,
+        }
+      : undefined;
+
+  const price = (variant?.price ?? product.price) || 0;
+
+  return {
+    id: Number(variant?.id ?? product.id) || 0,
+    title: product.title,
+    variantTitle: variant?.title,
+    sku: variant?.sku ?? product.sku,
+    price,
+    discountedPrice: price,
+    quantity,
+    imgs,
+  };
+}
 
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
   const { openPreviewModal } = usePreviewSlider();
   const [quantity, setQuantity] = useState(1);
+  const [activePreview, setActivePreview] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<BackendVariant | null>(
+    null
+  );
 
   const dispatch = useDispatch<AppDispatch>();
 
-  // get the product data
-  const product = useAppSelector((state) => state.quickViewReducer.value);
+  // Quick-view data từ card click
+  const quickProduct = useAppSelector((state) => state.quickViewReducer.value);
 
-  // Call API product detail theo slug khi modal mở (nếu cần dùng thêm dữ liệu backend)
-  useGetProductBySlugQuery(product.slug as string, {
-    skip: !isModalOpen || !product.slug,
+  // Lấy product detail thật để có variants/sku/stock logic chuẩn
+  const { data } = useGetProductBySlugQuery(quickProduct.slug as string, {
+    skip: !isModalOpen || !quickProduct.slug,
   });
 
-  const [activePreview, setActivePreview] = useState(0);
+  const backendProduct = data?.product ?? null;
+  const variants = useMemo(
+    () => backendProduct?.variants ?? [],
+    [backendProduct]
+  );
+  const selected = selectedVariant ?? variants[0] ?? null;
+
+  const previews =
+    backendProduct?.images?.length
+      ? backendProduct.images
+      : quickProduct?.imgs?.previews ?? [];
+  const thumbnails =
+    backendProduct?.thumbnails?.length
+      ? backendProduct.thumbnails
+      : quickProduct?.imgs?.thumbnails?.length
+      ? quickProduct.imgs.thumbnails
+      : previews;
+
+  const displayTitle = backendProduct?.title || quickProduct?.title || "Product";
+  const displayRating = backendProduct?.rating ?? quickProduct?.rating ?? 0;
+  const displayReviews =
+    backendProduct?.reviewCount ?? quickProduct?.reviews ?? 0;
+
+  const displayPrice =
+    selected?.price ??
+    backendProduct?.price ??
+    quickProduct?.discountedPrice ??
+    quickProduct?.price ??
+    0;
+
+  const compareAt =
+    selected?.compareAtPrice ??
+    backendProduct?.discountedPrice ??
+    (quickProduct?.discountedPrice &&
+    quickProduct?.discountedPrice < (quickProduct?.price ?? 0)
+      ? quickProduct.price
+      : null);
+
+  const isAvailable =
+    typeof selected?.available === "boolean"
+      ? selected.available
+      : backendProduct
+      ? backendProduct.stockStatus !== "out-of-stock"
+      : true;
 
   // preview modal
   const handlePreviewSlider = () => {
-    dispatch(updateproductDetails(product));
+    dispatch(
+      updateproductDetails({
+        ...quickProduct,
+        title: displayTitle,
+        price: displayPrice,
+        discountedPrice: compareAt ?? displayPrice,
+        reviews: displayReviews,
+        rating: displayRating,
+        imgs: {
+          thumbnails,
+          previews,
+        },
+      })
+    );
 
     openPreviewModal();
   };
 
   // add to cart
   const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...product,
-        quantity,
-      })
-    );
+    if (backendProduct) {
+      dispatch(addItemToCart(mapBackendProductToCartItem(backendProduct, selected, quantity)));
+    } else {
+      dispatch(
+        addItemToCart({
+          ...quickProduct,
+          id: Number(selected?.id ?? quickProduct.id) || 0,
+          sku: selected?.sku,
+          variantTitle: selected?.title,
+          price: displayPrice,
+          discountedPrice: displayPrice,
+          quantity,
+        })
+      );
+    }
 
     closeModal();
   };
 
   useEffect(() => {
     // closing modal while clicking outside
-    function handleClickOutside(event) {
-      if (!event.target.closest(".modal-content")) {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      if (!target.closest(".modal-content")) {
         closeModal();
       }
     }
@@ -63,8 +167,16 @@ const QuickViewModal = () => {
       document.removeEventListener("mousedown", handleClickOutside);
 
       setQuantity(1);
+      setActivePreview(0);
+      setSelectedVariant(null);
     };
   }, [isModalOpen, closeModal]);
+
+  useEffect(() => {
+    if (variants.length && !selectedVariant) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants, selectedVariant]);
 
   return (
     <div
@@ -99,7 +211,7 @@ const QuickViewModal = () => {
             <div className="max-w-[526px] w-full">
               <div className="flex gap-5">
                 <div className="flex flex-col gap-5">
-                  {product.imgs.thumbnails?.map((img, key) => (
+                  {thumbnails.map((img, key) => (
                     <button
                       onClick={() => setActivePreview(key)}
                       key={key}
@@ -141,9 +253,9 @@ const QuickViewModal = () => {
                       </svg>
                     </button>
 
-                    {product?.imgs?.previews?.[activePreview] && (
+                    {previews[activePreview] && (
                       <Image
-                        src={product.imgs.previews[activePreview]}
+                        src={previews[activePreview]}
                         alt="products-details"
                         width={400}
                         height={400}
@@ -155,12 +267,14 @@ const QuickViewModal = () => {
             </div>
 
             <div className="max-w-[445px] w-full">
-              <span className="inline-block text-custom-xs font-medium text-white py-1 px-3 bg-green mb-6.5">
-                SALE 20% OFF
-              </span>
+              {compareAt && compareAt > displayPrice && (
+                <span className="inline-block text-custom-xs font-medium text-white py-1 px-3 bg-green mb-6.5">
+                  SALE
+                </span>
+              )}
 
               <h3 className="font-semibold text-xl xl:text-heading-5 text-dark mb-4">
-                {product.title}
+                {displayTitle}
               </h3>
 
               <div className="flex flex-wrap items-center gap-5 mb-6">
@@ -274,8 +388,11 @@ const QuickViewModal = () => {
                   </div>
 
                   <span>
-                    <span className="font-medium text-dark"> 4.7 Rating </span>
-                    <span className="text-dark-2"> (5 reviews) </span>
+                    <span className="font-medium text-dark">
+                      {" "}
+                      {displayRating.toFixed(1)} Rating{" "}
+                    </span>
+                    <span className="text-dark-2"> ({displayReviews} reviews) </span>
                   </span>
                 </div>
 
@@ -304,9 +421,39 @@ const QuickViewModal = () => {
                     </defs>
                   </svg>
 
-                  <span className="font-medium text-dark"> In Stock </span>
+                  <span className={`font-medium ${isAvailable ? "text-dark" : "text-dark-4"}`}>
+                    {isAvailable ? "In Stock" : "Out of stock"}
+                  </span>
                 </div>
               </div>
+
+              {variants.length > 0 && (
+                <div className="flex flex-col gap-3 mb-6">
+                  <h4 className="font-semibold text-lg text-dark">Variant</h4>
+                  <div className="flex flex-wrap gap-2.5">
+                    {variants.map((variant, index) => (
+                      <label key={variant.id ?? index} className="cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="quick-view-variant"
+                          className="sr-only"
+                          checked={selected ? selected === variant : index === 0}
+                          onChange={() => setSelectedVariant(variant)}
+                        />
+                        <span
+                          className={`inline-block py-1.5 px-3 rounded-md border text-custom-sm ${
+                            selected === variant
+                              ? "border-blue bg-blue/10 text-blue"
+                              : "border-gray-4 text-dark"
+                          }`}
+                        >
+                          {variant.title}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <p>
                 Lorem Ipsum is simply dummy text of the printing and
@@ -322,11 +469,13 @@ const QuickViewModal = () => {
                   <span className="flex flex-col gap-1">
                     <span className="flex items-center gap-2">
                       <span className="font-semibold text-dark text-xl xl:text-heading-4">
-                        ${product.discountedPrice}
+                        ${displayPrice}
                       </span>
-                      <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
-                        ${product.price}
-                      </span>
+                      {compareAt && compareAt > displayPrice && (
+                        <span className="font-medium text-dark-4 text-lg xl:text-2xl line-through">
+                          ${compareAt}
+                        </span>
+                      )}
                     </span>
                   </span>
                 </div>
@@ -400,12 +549,12 @@ const QuickViewModal = () => {
 
               <div className="flex flex-wrap items-center gap-4">
                 <button
-                  disabled={quantity === 0 && true}
+                  disabled={quantity === 0 || !isAvailable}
                   onClick={() => handleAddToCart()}
                   className={`inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark
                   `}
                 >
-                  Add to Cart
+                  {isAvailable ? "Add to Cart" : "Out of stock"}
                 </button>
 
                 <button
