@@ -1,1 +1,46 @@
+name: Deploy with Docker Script
 
+on:
+  workflow_dispatch:
+    inputs:
+      env_target:
+        description: 'Chọn môi trường để deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate .env file
+        # BƯỚC QUAN TRỌNG: Tạo file .env động từ GitHub Secrets
+        run: |
+          touch .env
+          echo "API_BASE_URL=${{ secrets.API_BASE_URL }}" >> .env
+          echo "NEXT_PUBLIC_PAYPAL_CLIENT_ID=${{ secrets.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}" >> .env
+          
+
+      - name: Make script executable
+        run: chmod +x ./run_docker.sh 
+
+      - name: Run Docker Deployment
+        run: |
+          # Lấy giá trị môi trường người dùng chọn (dev hoặc prod)
+          TARGET="${{ inputs.env_target }}"
+          echo "Bắt đầu deploy cho môi trường: $TARGET"
+          
+          # Chạy script deploy
+          ./run_docker.sh $TARGET 
+
+      - name: Clean up .env
+        # BƯỚC BẢO MẬT: Luôn luôn xóa file .env sau khi chạy xong
+        if: always() 
+        run: rm -f .env
