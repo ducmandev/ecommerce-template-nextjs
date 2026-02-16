@@ -53,9 +53,11 @@ export function mapShopProductToProduct(raw: ShopProductRaw): Product {
   const price = Number(raw.price) ?? 0;
   const discountedPrice =
     Number(raw.discountedPrice) ?? Number(raw.salePrice) ?? price;
+  const id = typeof raw.id === "string" ? parseInt(raw.id, 10) : raw.id;
+  const idStr = String(raw.id);
   return {
-    id: typeof raw.id === 'string' ? parseInt(raw.id, 10) : raw.id,
-    slug: raw.slug ?? raw.handle ?? String(raw.id),
+    id,
+    slug: raw.slug ?? raw.handle ?? idStr,
     title: raw.title ?? raw.name ?? "Product",
     price,
     discountedPrice,
@@ -64,6 +66,8 @@ export function mapShopProductToProduct(raw: ShopProductRaw): Product {
       thumbnails: [img],
       previews: Array.isArray(raw.images) ? raw.images : [img],
     },
+    productId: idStr,
+    variantId: idStr,
   };
 }
 
@@ -90,12 +94,13 @@ export type ProductFilterParams = {
   minPrice?: number;
   maxPrice?: number;
   sort?: string;
+  name?: string;
 };
 
 export const shopApi = api.injectEndpoints({
   endpoints: (build) => ({
     getShopProducts: build.query<ShopProductsResponse, ProductFilterParams>({
-      query: ({ page = 1, limit = 9, category, brand, color, size, minPrice, maxPrice, sort }) => {
+      query: ({ page = 1, limit = 9, category, brand, color, size, minPrice, maxPrice, sort, name }) => {
         const params = new URLSearchParams();
         params.append("Page", String(page));
         params.append("Limit", String(limit));
@@ -106,6 +111,7 @@ export const shopApi = api.injectEndpoints({
         if (minPrice !== undefined) params.append("MinPrice", String(minPrice));
         if (maxPrice !== undefined) params.append("MaxPrice", String(maxPrice));
         if (sort) params.append("Sort", sort);
+        if (name) params.append("Name", name);
         return `shop/products?${params.toString()}`;
       },
     }),

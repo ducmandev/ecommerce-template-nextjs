@@ -2,10 +2,18 @@
 import React from "react";
 import Breadcrumb from "../Common/Breadcrumb";
 import { useAppSelector } from "@/redux/store";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "@/redux/store";
+import { removeAllItemsFromWishlist } from "@/redux/features/wishlist-slice";
 import SingleItem from "./SingleItem";
 
 export const Wishlist = () => {
   const wishlistItems = useAppSelector((state) => state.wishlistReducer.items);
+  const dispatch = useDispatch<AppDispatch>();
+
+  const handleClearWishlist = () => {
+    dispatch(removeAllItemsFromWishlist());
+  };
 
   return (
     <>
@@ -14,7 +22,13 @@ export const Wishlist = () => {
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <div className="flex flex-wrap items-center justify-between gap-5 mb-7.5">
             <h2 className="font-medium text-dark text-2xl">Your Wishlist</h2>
-            <button className="text-blue">Clear Wishlist Cart</button>
+            <button
+              type="button"
+              onClick={handleClearWishlist}
+              className="text-blue hover:underline"
+            >
+              Clear Wishlist Cart
+            </button>
           </div>
 
           <div className="bg-white rounded-[10px] shadow-1">
@@ -27,11 +41,15 @@ export const Wishlist = () => {
                     <p className="text-dark">Product</p>
                   </div>
 
-                  <div className="min-w-[205px]">
+                  <div className="min-w-[220px]">
+                    <p className="text-dark">Variant</p>
+                  </div>
+
+                  <div className="min-w-[120px]">
                     <p className="text-dark">Unit Price</p>
                   </div>
 
-                  <div className="min-w-[265px]">
+                  <div className="min-w-[180px]">
                     <p className="text-dark">Stock Status</p>
                   </div>
 

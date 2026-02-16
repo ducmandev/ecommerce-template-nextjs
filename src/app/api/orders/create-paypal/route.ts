@@ -1,41 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-// Mock API to create PayPal order
+const PAYMENT_CREATE_ORDER_URL = process.env.API_BASE_URL
+  ? `${process.env.API_BASE_URL.replace(/\/$/, "")}/payment/create-order`
+  : "https://be.pozzel.xyz/api/payment/create-order";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, amount } = body;
-    
-    if (!orderId || !amount) {
+    const { orderId } = body;
+
+    if (!orderId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: "Missing orderId" },
         { status: 400 }
       );
     }
-    
-    // Mock PayPal order ID
-    const paypalOrderId = `PAYPAL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    
-    console.log('Creating PayPal order:', {
-      orderId,
-      amount,
-      paypalOrderId,
+
+    const response = await fetch(PAYMENT_CREATE_ORDER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+      },
+      body: JSON.stringify({ orderId }),
     });
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In production, you would call PayPal API here
-    // const paypalOrder = await createPayPalOrder(amount, orderId);
-    
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || data.error || "Failed to create PayPal order" },
+        { status: response.status }
+      );
+    }
+
     return NextResponse.json({
-      paypalOrderId,
-      status: 'created',
+      orderId: data.orderId,
+      approvalLink: data.approvalLink,
+      ...data,
     });
   } catch (error: any) {
-    console.error('Create PayPal order error:', error);
+    console.error("Create PayPal order error:", error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create PayPal order' },
+      { error: error.message || "Failed to create PayPal order" },
       { status: 500 }
     );
   }

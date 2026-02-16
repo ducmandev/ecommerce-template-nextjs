@@ -20,12 +20,14 @@ const SingleListItem = ({ item }: { item: Product }) => {
     dispatch(updateQuickView({ ...item }));
   };
 
-  // add to cart
+  // add to cart (productId, variantId từ item để API order lấy từ giỏ)
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
         ...item,
         quantity: 1,
+        productId: item.productId ?? String(item.id),
+        variantId: item.variantId ?? String(item.id),
       })
     );
   };
@@ -41,19 +43,56 @@ const SingleListItem = ({ item }: { item: Product }) => {
   };
 
   return (
-    <div className="group rounded-lg bg-white shadow-1">
-      <div className="flex">
-        <div className="shadow-list relative overflow-hidden flex items-center justify-center max-w-[270px] w-full sm:min-h-[270px] p-4">
-          <Image src={item.imgs.previews[0]} alt="" width={250} height={250} />
+    <div className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
+      <div className="flex flex-col sm:flex-row">
+        {/* Image Section */}
+        <div className="relative overflow-hidden bg-gray-50 sm:max-w-[270px] w-full aspect-square sm:aspect-auto sm:min-h-[270px]">
+          {/* Badge */}
+          {item.badge && (
+            <div className="absolute top-3 left-3 z-10">
+              <span className={`inline-block px-2.5 py-1 text-xs font-semibold uppercase rounded ${
+                item.badge === 'NEW' ? 'bg-pink-600 text-white' : 
+                item.badge === 'SALE' ? 'bg-orange-500 text-white' : 
+                'bg-gray-800 text-white'
+              }`}>
+                {item.badge}
+              </span>
+            </div>
+          )}
 
-          <div className="absolute left-0 bottom-0 translate-y-full w-full flex items-center justify-center gap-2.5 pb-5 ease-linear duration-200 group-hover:translate-y-0">
+          {/* Action Buttons - Top Right (for list view, smaller and horizontal) */}
+          <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {/* Wishlist Button */}
+            <button
+              onClick={() => handleItemToWishList()}
+              aria-label="Add to wishlist"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md hover:bg-pink-600 hover:text-white transition-colors duration-200"
+            >
+              <svg
+                className="fill-current"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M3.74949 2.94946C2.6435 3.45502 1.83325 4.65749 1.83325 6.0914C1.83325 7.55633 2.43273 8.68549 3.29211 9.65318C4.0004 10.4507 4.85781 11.1118 5.694 11.7564C5.89261 11.9095 6.09002 12.0617 6.28395 12.2146C6.63464 12.491 6.94747 12.7337 7.24899 12.9099C7.55068 13.0862 7.79352 13.1667 7.99992 13.1667C8.20632 13.1667 8.44916 13.0862 8.75085 12.9099C9.05237 12.7337 9.3652 12.491 9.71589 12.2146C9.90982 12.0617 10.1072 11.9095 10.3058 11.7564C11.142 11.1118 11.9994 10.4507 12.7077 9.65318C13.5671 8.68549 14.1666 7.55633 14.1666 6.0914C14.1666 4.65749 13.3563 3.45502 12.2503 2.94946C11.1759 2.45832 9.73214 2.58839 8.36016 4.01382C8.2659 4.11175 8.13584 4.16709 7.99992 4.16709C7.864 4.16709 7.73393 4.11175 7.63967 4.01382C6.26769 2.58839 4.82396 2.45832 3.74949 2.94946ZM7.99992 2.97255C6.45855 1.5935 4.73256 1.40058 3.33376 2.03998C1.85639 2.71528 0.833252 4.28336 0.833252 6.0914C0.833252 7.86842 1.57358 9.22404 2.5444 10.3172C3.32183 11.1926 4.2734 11.9253 5.1138 12.5724C5.30431 12.7191 5.48911 12.8614 5.66486 12.9999C6.00636 13.2691 6.37295 13.5562 6.74447 13.7733C7.11582 13.9903 7.53965 14.1667 7.99992 14.1667C8.46018 14.1667 8.88401 13.9903 9.25537 13.7733C9.62689 13.5562 9.99348 13.2691 10.335 12.9999C10.5107 12.8614 10.6955 12.7191 10.886 12.5724C11.7264 11.9253 12.678 11.1926 13.4554 10.3172C14.4263 9.22404 15.1666 7.86842 15.1666 6.0914C15.1666 4.28336 14.1434 2.71528 12.6661 2.03998C11.2673 1.40058 9.54129 1.5935 7.99992 2.97255Z"
+                  fill=""
+                />
+              </svg>
+            </button>
+
+            {/* Quick View Button */}
             <button
               onClick={() => {
                 openModal();
                 handleQuickViewUpdate();
               }}
-              aria-label="button for quick view"
-              className="flex items-center justify-center w-9 h-9 rounded-[5px] shadow-1 ease-out duration-200 text-dark bg-white hover:text-blue"
+              aria-label="Quick view"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md hover:bg-gray-800 hover:text-white transition-colors duration-200"
             >
               <svg
                 className="fill-current"
@@ -77,85 +116,79 @@ const SingleListItem = ({ item }: { item: Product }) => {
                 />
               </svg>
             </button>
-
-            <button
-              onClick={() => handleAddToCart()}
-              className="inline-flex font-medium text-custom-sm py-[7px] px-5 rounded-[5px] bg-blue text-white ease-out duration-200 hover:bg-blue-dark"
-            >
-              Add to cart
-            </button>
-
-            <button
-              onClick={() => handleItemToWishList()}
-              aria-label="button for favorite select"
-              className="flex items-center justify-center w-9 h-9 rounded-[5px] shadow-1 ease-out duration-200 text-dark bg-white hover:text-blue"
-            >
-              <svg
-                className="fill-current"
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M3.74949 2.94946C2.6435 3.45502 1.83325 4.65749 1.83325 6.0914C1.83325 7.55633 2.43273 8.68549 3.29211 9.65318C4.0004 10.4507 4.85781 11.1118 5.694 11.7564C5.89261 11.9095 6.09002 12.0617 6.28395 12.2146C6.63464 12.491 6.94747 12.7337 7.24899 12.9099C7.55068 13.0862 7.79352 13.1667 7.99992 13.1667C8.20632 13.1667 8.44916 13.0862 8.75085 12.9099C9.05237 12.7337 9.3652 12.491 9.71589 12.2146C9.90982 12.0617 10.1072 11.9095 10.3058 11.7564C11.142 11.1118 11.9994 10.4507 12.7077 9.65318C13.5671 8.68549 14.1666 7.55633 14.1666 6.0914C14.1666 4.65749 13.3563 3.45502 12.2503 2.94946C11.1759 2.45832 9.73214 2.58839 8.36016 4.01382C8.2659 4.11175 8.13584 4.16709 7.99992 4.16709C7.864 4.16709 7.73393 4.11175 7.63967 4.01382C6.26769 2.58839 4.82396 2.45832 3.74949 2.94946ZM7.99992 2.97255C6.45855 1.5935 4.73256 1.40058 3.33376 2.03998C1.85639 2.71528 0.833252 4.28336 0.833252 6.0914C0.833252 7.86842 1.57358 9.22404 2.5444 10.3172C3.32183 11.1926 4.2734 11.9253 5.1138 12.5724C5.30431 12.7191 5.48911 12.8614 5.66486 12.9999C6.00636 13.2691 6.37295 13.5562 6.74447 13.7733C7.11582 13.9903 7.53965 14.1667 7.99992 14.1667C8.46018 14.1667 8.88401 13.9903 9.25537 13.7733C9.62689 13.5562 9.99348 13.2691 10.335 12.9999C10.5107 12.8614 10.6955 12.7191 10.886 12.5724C11.7264 11.9253 12.678 11.1926 13.4554 10.3172C14.4263 9.22404 15.1666 7.86842 15.1666 6.0914C15.1666 4.28336 14.1434 2.71528 12.6661 2.03998C11.2673 1.40058 9.54129 1.5935 7.99992 2.97255Z"
-                  fill=""
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="w-full flex flex-col gap-5 sm:flex-row sm:items-center justify-center sm:justify-between py-5 px-4 sm:px-7.5 lg:pl-11 lg:pr-12">
-          <div>
-            <h3 className="font-medium text-dark ease-out duration-200 hover:text-blue mb-1.5">
-              <Link href={`/products/${item?.slug}`}> {item.title} </Link>
-            </h3>
-
-            <span className="flex items-center gap-2 font-medium text-lg">
-              <span className="text-dark">${item?.price}</span>
-              <span className={`text-dark-4 line-through ${item?.discountedPrice ? 'block' : 'hidden'}`}>${item?.discountedPrice}</span>
-            </span>
           </div>
 
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="flex items-center gap-1">
-              <Image
-                src="/images/icons/icon-star.svg"
-                alt="star icon"
-                width={15}
-                height={15}
-              />
-              <Image
-                src="/images/icons/icon-star.svg"
-                alt="star icon"
-                width={15}
-                height={15}
-              />
-              <Image
-                src="/images/icons/icon-star.svg"
-                alt="star icon"
-                width={15}
-                height={15}
-              />
-              <Image
-                src="/images/icons/icon-star.svg"
-                alt="star icon"
-                width={15}
-                height={15}
-              />
-              <Image
-                src="/images/icons/icon-star.svg"
-                alt="star icon"
-                width={15}
-                height={15}
+          {/* Product Image */}
+          <Link href={`/products/${item?.slug}`}>
+            <div className="flex items-center justify-center w-full h-full p-6 cursor-pointer">
+              <Image 
+                src={item.imgs.previews[0]} 
+                alt={item.title} 
+                width={250} 
+                height={250}
+                className="object-contain w-full h-full transition-transform duration-300 group-hover:scale-105"
               />
             </div>
+          </Link>
+        </div>
 
-            <p className="text-custom-sm">({item.reviews})</p>
+        {/* Product Info Section */}
+        <div className="flex-1 p-6 flex flex-col justify-between">
+          <div>
+            {/* Category */}
+            {item.category && (
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                {item.category}
+              </p>
+            )}
+
+            {/* Product Title */}
+            <h3 className="font-medium text-lg text-gray-900 mb-2 hover:text-[#991B4D] transition-colors duration-200">
+              <Link href={`/products/${item?.slug}`}>{item.title}</Link>
+            </h3>
+
+            {/* Rating */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <svg
+                    key={i}
+                    className={`w-4 h-4 ${i < Math.floor(item.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300 fill-current'}`}
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              {item.reviews > 0 && (
+                <span className="text-xs text-gray-500">({item.reviews})</span>
+              )}
+            </div>
+
+            {/* Price */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl font-bold text-gray-900">
+                ${item?.discountedPrice || item?.price}
+              </span>
+              {item?.discountedPrice && (
+                <span className="text-sm text-gray-400 line-through">
+                  ${item?.price}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Add to Cart Button */}
+          <div>
+            <button
+              onClick={() => handleAddToCart()}
+              className="w-full sm:w-auto bg-[#991B4D] hover:bg-[#7a1639] text-white font-medium py-2.5 px-6 rounded-md transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Add to cart
+            </button>
           </div>
         </div>
       </div>

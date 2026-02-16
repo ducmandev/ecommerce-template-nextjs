@@ -1,44 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-// Mock API to capture PayPal payment
+const PAYMENT_CAPTURE_ORDER_URL = process.env.API_BASE_URL
+  ? `${process.env.API_BASE_URL.replace(/\/$/, "")}/payment/capture-order`
+  : "https://be.pozzel.xyz/api/payment/capture-order";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, paypalOrderId } = body;
-    
-    if (!orderId || !paypalOrderId) {
+    const { orderId, payPalOrderId } = body;
+
+    if (!orderId || !payPalOrderId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: "Missing orderId or payPalOrderId" },
         { status: 400 }
       );
     }
-    
-    // Mock transaction ID
-    const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    
-    console.log('Capturing PayPal payment:', {
-      orderId,
-      paypalOrderId,
-      transactionId,
+
+    const response = await fetch(PAYMENT_CAPTURE_ORDER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+      },
+      body: JSON.stringify({ orderId, payPalOrderId }),
     });
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // In production, you would call PayPal API here to capture payment
-    // const captureResult = await capturePayPalPayment(paypalOrderId);
-    
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || data.error || "Failed to capture payment" },
+        { status: response.status }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      orderId,
-      transactionId,
-      status: 'completed',
-      message: 'Payment captured successfully',
+      orderId: data.orderId,
+      transactionId: data.transactionId,
+      status: data.status ?? "completed",
+      message: data.message ?? "Payment captured successfully",
+      ...data,
     });
   } catch (error: any) {
-    console.error('Capture PayPal payment error:', error);
+    console.error("Capture PayPal payment error:", error);
     return NextResponse.json(
-      { error: error.message || 'Failed to capture payment' },
+      { error: error.message || "Failed to capture payment" },
       { status: 500 }
     );
   }

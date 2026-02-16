@@ -4,21 +4,22 @@ type InitialState = {
   items: WishListItem[];
 };
 
-type WishListItem = {
+export type WishListItem = {
   id: number;
   title: string;
   price: number;
   discountedPrice: number;
   quantity: number;
   status?: string;
+  slug?: string;
   imgs?: {
     thumbnails: string[];
     previews: string[];
   };
 };
 
-// Load wishlist from localStorage
-const loadWishlistFromStorage = (): WishListItem[] => {
+// Load wishlist from localStorage (client-only; use for hydration)
+export const loadWishlistFromStorage = (): WishListItem[] => {
   if (typeof window === "undefined") return [];
   try {
     const savedWishlist = localStorage.getItem("wishlist");
@@ -39,8 +40,9 @@ const saveWishlistToStorage = (items: WishListItem[]) => {
   }
 };
 
+// Always start with empty to avoid SSR/hydration mismatch; hydrate on client
 const initialState: InitialState = {
-  items: loadWishlistFromStorage(),
+  items: [],
 };
 
 export const wishlist = createSlice({
@@ -48,7 +50,7 @@ export const wishlist = createSlice({
   initialState,
   reducers: {
     addItemToWishlist: (state, action: PayloadAction<WishListItem>) => {
-      const { id, title, price, quantity, imgs, discountedPrice, status } =
+      const { id, title, price, quantity, imgs, discountedPrice, status, slug } =
         action.payload;
       const existingItem = state.items.find((item) => item.id === id);
 
@@ -63,6 +65,7 @@ export const wishlist = createSlice({
           imgs,
           discountedPrice,
           status,
+          slug,
         });
       }
       
@@ -83,6 +86,11 @@ export const wishlist = createSlice({
       // Save to localStorage
       saveWishlistToStorage(state.items);
     },
+
+    // Hydrate wishlist from localStorage (dispatch with payload from client useEffect)
+    setWishlistFromStorage: (state, action: PayloadAction<WishListItem[]>) => {
+      state.items = action.payload;
+    },
   },
 });
 
@@ -90,5 +98,6 @@ export const {
   addItemToWishlist,
   removeItemFromWishlist,
   removeAllItemsFromWishlist,
+  setWishlistFromStorage,
 } = wishlist.actions;
 export default wishlist.reducer;

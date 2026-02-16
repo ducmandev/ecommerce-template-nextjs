@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import Image from "next/image";
@@ -24,7 +24,7 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const cartItems = useAppSelector((state) => state.cartReducer.items);
   const subtotal = useSelector(selectTotalPrice);
-  const total = subtotal + SHIPPING_FEE;
+  const total = subtotal /* + SHIPPING_FEE */;
 
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -34,12 +34,160 @@ const Checkout = () => {
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paypalPopupOpen, setPaypalPopupOpen] = useState(false);
+  const paypalPopupRef = useRef<Window | null>(null);
+
+  // Form validation
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    companyName: "",
+    country: "Australia",
+    address: "",
+    addressTwo: "",
+    town: "",
+    phone: "",
+    email: "",
+    shippingMethod: "free",
+    notes: "",
+    // Shipping (different address) - only validated if user fills any field
+    shipFirstName: "",
+    shipLastName: "",
+    shipCompanyName: "",
+    shipAddress: "",
+    shipAddressTwo: "",
+    shipTown: "",
+    shipPhone: "",
+    shipEmail: "",
+  });
+
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [showErrors, setShowErrors] = useState(false);
 
   const steps = [
     { number: 1, title: "SHIPPING & PAYMENT METHOD" },
     { number: 2, title: "COMPLETE PAYMENT" },
     { number: 3, title: "REVIEW ORDER" },
   ];
+
+  // Check if user has entered any shipping info (then we validate all required shipping fields)
+  const hasAnyShippingInput = () => {
+    const s = formData;
+    return !!(
+      s.shipFirstName?.trim() ||
+      s.shipLastName?.trim() ||
+      s.shipCompanyName?.trim() ||
+      s.shipAddress?.trim() ||
+      s.shipAddressTwo?.trim() ||
+      s.shipTown?.trim() ||
+      s.shipPhone?.trim() ||
+      s.shipEmail?.trim()
+    );
+  };
+
+  // Build address object for API (fullName, phone, line1, line2, city, state, postalCode, country)
+  const buildBillingAddress = () => ({
+    fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+    phone: formData.phone.trim(),
+    line1: formData.address.trim(),
+    line2: formData.addressTwo.trim(),
+    city: formData.town.trim(),
+    state: "",
+    postalCode: "",
+    country: formData.country?.trim() || "Australia",
+  });
+
+  const buildShippingAddress = () => {
+    if (hasAnyShippingInput()) {
+      return {
+        fullName: `${formData.shipFirstName.trim()} ${formData.shipLastName.trim()}`.trim(),
+        phone: formData.shipPhone.trim(),
+        line1: formData.shipAddress.trim(),
+        line2: formData.shipAddressTwo.trim(),
+        city: formData.shipTown.trim(),
+        state: "",
+        postalCode: "",
+        country: formData.country?.trim() || "Australia",
+      };
+    }
+    return buildBillingAddress();
+  };
+
+  // Validation function
+  const validateForm = () => {
+    const errors: { [key: string]: string } = {};
+
+    // Required billing fields
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required";
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    }
+    if (!formData.address.trim()) {
+      errors.address = "Street address is required";
+    }
+    if (!formData.town.trim()) {
+      errors.town = "Town/City is required";
+    }
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^\+?[\d\s-()]+$/.test(formData.phone)) {
+      errors.phone = "Please enter a valid phone number";
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Email address is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    // Shipping: only validate if user has entered at least one shipping field
+    if (hasAnyShippingInput()) {
+      if (!formData.shipFirstName.trim()) {
+        errors.shipFirstName = "First name is required";
+      }
+      if (!formData.shipLastName.trim()) {
+        errors.shipLastName = "Last name is required";
+      }
+      if (!formData.shipAddress.trim()) {
+        errors.shipAddress = "Street address is required";
+      }
+      if (!formData.shipTown.trim()) {
+        errors.shipTown = "Town/City is required";
+      }
+      if (!formData.shipPhone.trim()) {
+        errors.shipPhone = "Phone number is required";
+      } else if (!/^\+?[\d\s-()]+$/.test(formData.shipPhone)) {
+        errors.shipPhone = "Please enter a valid phone number";
+      }
+      if (!formData.shipEmail.trim()) {
+        errors.shipEmail = "Email address is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.shipEmail)) {
+        errors.shipEmail = "Please enter a valid email address";
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0 ? true : { errors };
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -61,46 +209,135 @@ const Checkout = () => {
       return;
     }
 
+    // productId và variantSku (mã SKU variant) lấy từ giỏ hàng
+    const itemsInvalid = cartItems.filter(
+      (item) => !item.productId || !item.sku?.trim()
+    );
+    if (itemsInvalid.length > 0) {
+      alert(
+        "Một số sản phẩm trong giỏ chưa có thông tin product/SKU. Vui lòng xóa và thêm lại từ trang chi tiết sản phẩm."
+      );
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      // Create order in backend
-      const response = await fetch('/api/orders/create', {
-        method: 'POST',
+      const payload = {
+        items: cartItems.map((item) => ({
+          productId: item.productId as string,
+          variantSku: item.sku!.trim(),
+          quantity: item.quantity,
+        })),
+        shippingAddress: buildShippingAddress(),
+        billingAddress: buildBillingAddress(),
+        paymentMethod,
+        notes: formData.notes?.trim() || "",
+      };
+
+      const response = await fetch("/api/orders/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          paymentMethod,
-          items: cartItems.map(item => ({
-            productId: item.id,
-            title: item.title,
-            quantity: item.quantity,
-            unitPrice: item.discountedPrice,
-          })),
-          subtotal,
-          shippingFee: SHIPPING_FEE,
-          total,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create order');
+        throw new Error(data.error || "Failed to create order");
       }
 
-      setOrderId(data.orderId);
+      const ourOrderId = data.order?.orderId ?? data.orderId;
+      setOrderId(ourOrderId);
       setOrderCreated(true);
 
-      // Auto move to Step 2 after order created (for PayPal and Bank)
-      if (paymentMethod === 'paypal' || paymentMethod === 'bank') {
+      if (paymentMethod === "paypal") {
+        const payRes = await fetch("/api/orders/create-paypal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: ourOrderId }),
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok) {
+          throw new Error(payData.error || "Failed to create PayPal session");
+        }
+        if (payData.approvalLink) {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("paypalPendingOrderId", ourOrderId);
+            if (payData.orderId) {
+              sessionStorage.setItem("paypalOrderIdFromCreate", payData.orderId);
+            }
+          }
+          const popup = window.open(
+            payData.approvalLink,
+            "paypal_approval",
+            "width=500,height=600,scrollbars=yes,resizable=yes,left=100,top=100"
+          );
+          if (!popup) {
+            alert("Trình duyệt đã chặn popup. Vui lòng cho phép popup và thử lại.");
+            return;
+          }
+          paypalPopupRef.current = popup;
+          setCurrentStep(2);
+          setPaypalPopupOpen(true);
+          const timer = setInterval(async () => {
+            if (!paypalPopupRef.current?.closed) return;
+            clearInterval(timer);
+            const pendingOrderId =
+              typeof window !== "undefined"
+                ? sessionStorage.getItem("paypalPendingOrderId")
+                : null;
+            paypalPopupRef.current = null;
+            setPaypalPopupOpen(false);
+
+            if (pendingOrderId) {
+              const payPalOrderIdFromCreate =
+                typeof window !== "undefined"
+                  ? sessionStorage.getItem("paypalOrderIdFromCreate")
+                  : null;
+              try {
+                const res = await fetch("/api/orders/capture-paypal", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orderId: pendingOrderId,
+                    payPalOrderId: payPalOrderIdFromCreate || "",
+                  }),
+                });
+                const data = await res.json();
+                if (res.ok && (data.success || data.status === "completed")) {
+                  sessionStorage.removeItem("paypalPendingOrderId");
+                  sessionStorage.removeItem("paypalOrderIdFromCreate");
+                  dispatch(removeAllItemsFromCart());
+                  // const transactionId = data.transactionId || "";
+                  router.push(
+                    `/order-success?orderId=${encodeURIComponent(pendingOrderId)}`
+                  );
+                } else {
+                  sessionStorage.removeItem("paypalOrderIdFromCreate");
+                  setCurrentStep(1);
+                }
+              } catch {
+                sessionStorage.removeItem("paypalOrderIdFromCreate");
+                setCurrentStep(1);
+              }
+            } else {
+              setCurrentStep(1);
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      if (paymentMethod === "paypal" || paymentMethod === "bank") {
         setCurrentStep(2);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      alert(error.message || 'Failed to create order. Please try again.');
+      console.error("Checkout error:", error);
+      alert(error.message || "Failed to create order. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -118,12 +355,48 @@ const Checkout = () => {
     
     // After 2 seconds, redirect to success page
     setTimeout(() => {
-      router.push(`/order-success?orderId=${orderId}&transactionId=${details.transactionId}`);
+      router.push(`/order-success?orderId=${orderId}`);
     }, 2000);
   }, [dispatch, orderId, router]);
 
+  // Lắng nghe message từ popup PayPal (success -> chuyển order-success; cancel -> giữ step 1)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.type === "PAYPAL_SUCCESS" && data?.orderId) {
+        dispatch(removeAllItemsFromCart());
+        // const transactionId = data.transactionId || "";
+        setPaypalPopupOpen(false);
+        router.push(
+          `/order-success?orderId=${encodeURIComponent(data.orderId)}`
+        );
+      }
+      if (data?.type === "PAYPAL_CANCEL") {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("paypalOrderIdFromCreate");
+        }
+        setCurrentStep(1);
+        setPaypalPopupOpen(false);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [dispatch, router]);
+
   return (
     <>
+      {/* Loading overlay khi popup PayPal đang mở */}
+      {paypalPopupOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-dark/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 text-white">
+            <div className="animate-spin rounded-full h-14 w-14 border-4 border-white border-t-transparent" />
+            <p className="font-medium">Đang chờ thanh toán PayPal...</p>
+            <p className="text-sm text-white/80">Hoàn tất thanh toán trong cửa sổ popup</p>
+          </div>
+        </div>
+      )}
+
       <Breadcrumb title={"Checkout"} pages={["checkout"]} />
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -137,10 +410,208 @@ const Checkout = () => {
                 {/* Step 1: Shipping Information + Payment Method Selection */}
                 {currentStep === 1 && (
                   <div className="space-y-7.5">
+                    {/* Error Summary */}
+                    {showErrors && Object.keys(formErrors).length > 0 && (
+                      <div className="bg-red/10 border border-red/20 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-6 h-6 bg-red rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-red mb-1">
+                              Please fix the following errors:
+                            </p>
+                            <ul className="text-sm text-red space-y-1">
+                              {Object.entries(formErrors).map(([field, error]) => (
+                                <li key={field}>• {error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <Login />
-                    <Billing />
-                    <Shipping />
-                    <ShippingMethod />
+                    
+                    {/* Billing details with validation */}
+                    <div className="mt-9">
+                      <h2 className="font-medium text-dark text-xl sm:text-2xl mb-5.5">
+                        Billing details
+                      </h2>
+
+                      <div className="bg-white shadow-1 rounded-[10px] p-4 sm:p-8.5">
+                        <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 mb-5">
+                          <div className="w-full">
+                            <label htmlFor="firstName" className="block mb-2.5">
+                              First Name <span className="text-red">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="firstName"
+                              id="firstName"
+                              value={formData.firstName}
+                              onChange={handleInputChange}
+                              placeholder="John"
+                              className={`rounded-md border ${
+                                showErrors && formErrors.firstName ? 'border-red' : 'border-gray-3'
+                              } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                                showErrors && formErrors.firstName ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                              }`}
+                            />
+                            {showErrors && formErrors.firstName && (
+                              <p className="text-red text-sm mt-1">{formErrors.firstName}</p>
+                            )}
+                          </div>
+
+                          <div className="w-full">
+                            <label htmlFor="lastName" className="block mb-2.5">
+                              Last Name <span className="text-red">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="lastName"
+                              id="lastName"
+                              value={formData.lastName}
+                              onChange={handleInputChange}
+                              placeholder="Doe"
+                              className={`rounded-md border ${
+                                showErrors && formErrors.lastName ? 'border-red' : 'border-gray-3'
+                              } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                                showErrors && formErrors.lastName ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                              }`}
+                            />
+                            {showErrors && formErrors.lastName && (
+                              <p className="text-red text-sm mt-1">{formErrors.lastName}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="companyName" className="block mb-2.5">
+                            Company Name
+                          </label>
+                          <input
+                            type="text"
+                            name="companyName"
+                            id="companyName"
+                            value={formData.companyName}
+                            onChange={handleInputChange}
+                            className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                          />
+                        </div>
+
+
+
+                        <div className="mb-5">
+                          <label htmlFor="address" className="block mb-2.5">
+                            Street Address <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            id="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            placeholder="House number and street name"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.address ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.address ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.address && (
+                            <p className="text-red text-sm mt-1">{formErrors.address}</p>
+                          )}
+
+                          <div className="mt-5">
+                            <input
+                              type="text"
+                              name="addressTwo"
+                              id="addressTwo"
+                              value={formData.addressTwo}
+                              onChange={handleInputChange}
+                              placeholder="Apartment, suite, unit, etc. (optional)"
+                              className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="town" className="block mb-2.5">
+                            Town/ City <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="town"
+                            id="town"
+                            value={formData.town}
+                            onChange={handleInputChange}
+                            className={`rounded-md border ${
+                              showErrors && formErrors.town ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.town ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.town && (
+                            <p className="text-red text-sm mt-1">{formErrors.town}</p>
+                          )}
+                        </div>
+
+                        <div className="mb-5">
+                          <label htmlFor="phone" className="block mb-2.5">
+                            Phone <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="phone"
+                            id="phone"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            placeholder="+1 234 567 8900"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.phone ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.phone ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.phone && (
+                            <p className="text-red text-sm mt-1">{formErrors.phone}</p>
+                          )}
+                        </div>
+
+                        <div className="mb-5.5">
+                          <label htmlFor="email" className="block mb-2.5">
+                            Email Address <span className="text-red">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="example@email.com"
+                            className={`rounded-md border ${
+                              showErrors && formErrors.email ? 'border-red' : 'border-gray-3'
+                            } bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 ${
+                              showErrors && formErrors.email ? 'focus:ring-red/20' : 'focus:ring-blue/20'
+                            }`}
+                          />
+                          {showErrors && formErrors.email && (
+                            <p className="text-red text-sm mt-1">{formErrors.email}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Shipping
+                        formData={formData}
+                        formErrors={formErrors}
+                        showErrors={showErrors}
+                        onInputChange={handleInputChange}
+                        forceExpand={showErrors && Object.keys(formErrors).some((k) => k.startsWith("ship"))}
+                      />
+                    </div>
+                    
                     <PaymentMethod selected={paymentMethod} onChange={setPaymentMethod} />
 
                     {/* Order Notes */}
@@ -152,6 +623,8 @@ const Checkout = () => {
                         name="notes"
                         id="notes"
                         rows={5}
+                        value={formData.notes}
+                        onChange={handleInputChange}
                         placeholder="Notes about your order, e.g. special notes for delivery."
                         className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full p-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                       />
@@ -162,9 +635,22 @@ const Checkout = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          setShowErrors(true);
+                          const result = validateForm();
+                          if (result !== true) {
+                            const firstErrorField = Object.keys(result.errors)[0];
+                            const element = document.getElementById(firstErrorField);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              element.focus();
+                            }
+                            return;
+                          }
+
                           if (paymentMethod === 'cash') {
                             // Cash goes to step 3 for review
                             setCurrentStep(3);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                           } else {
                             // Bank/PayPal need to create order first
                             handleCheckout();
@@ -609,7 +1095,7 @@ const Checkout = () => {
                       </div>
 
                       {/* Shipping */}
-                      <div className="flex items-center justify-between text-dark-4">
+                      {/* <div className="flex items-center justify-between text-dark-4">
                         <p>Shipping</p>
                         <p className="font-medium">
                           {SHIPPING_FEE > 0 ? (
@@ -618,13 +1104,13 @@ const Checkout = () => {
                             <span className="text-green">Free</span>
                           )}
                         </p>
-                      </div>
+                      </div> */}
 
                       {/* Tax */}
-                      <div className="flex items-center justify-between text-dark-4">
+                      {/* <div className="flex items-center justify-between text-dark-4">
                         <p>Tax</p>
                         <p className="font-medium">${(total * 0.1).toFixed(2)}</p>
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Total */}
@@ -632,7 +1118,7 @@ const Checkout = () => {
                       <div className="flex items-center justify-between">
                         <p className="text-xl font-semibold text-dark">Total</p>
                         <p className="text-2xl font-bold text-red">
-                          ${(total + total * 0.1).toFixed(2)}
+                          ${(total).toFixed(2)}
                         </p>
                       </div>
                     </div>

@@ -17,6 +17,10 @@ type CartItem = {
   quantity: number;
   /** SKU của sản phẩm hoặc biến thể (nếu có). */
   sku?: string;
+  /** Product ID từ backend (cho API order). */
+  productId?: string;
+  /** Variant ID từ backend (cho API order). */
+  variantId?: string;
   imgs?: {
     thumbnails: string[];
     previews: string[];
@@ -63,9 +67,9 @@ export const cart = createSlice({
         quantity,
         discountedPrice,
         imgs,
+        productId,
+        variantId,
       } = action.payload;
-      // Ưu tiên dùng SKU làm khóa để phân biệt các biến thể.
-      // Nếu không có SKU (trường hợp hiếm), mới fallback theo id sản phẩm.
       const existingItem = state.items.find((item) =>
         sku ? item.sku === sku : item.id === id
       );
@@ -82,6 +86,8 @@ export const cart = createSlice({
           discountedPrice,
           sku,
           imgs,
+          productId,
+          variantId,
         });
       }
       

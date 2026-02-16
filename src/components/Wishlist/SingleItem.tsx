@@ -1,20 +1,93 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 
 import { removeItemFromWishlist } from "@/redux/features/wishlist-slice";
 import { addItemToCart } from "@/redux/features/cart-slice";
+import type { WishListItem } from "@/redux/features/wishlist-slice";
+import { useGetProductBySlugQuery } from "@/redux/services/productsApi";
+import type { BackendProduct, BackendVariant } from "@/redux/services/productsApi";
 
 import Image from "next/image";
 
-const SingleItem = ({ item }) => {
+function mapVariantToCartItem(
+  product: BackendProduct,
+  variant: BackendVariant | null,
+  quantity: number
+) {
+  const imgs =
+    product.images?.length || product.thumbnails?.length
+      ? {
+          thumbnails: product.thumbnails?.length
+            ? product.thumbnails
+            : product.images ?? [],
+          previews: product.images ?? [],
+        }
+      : undefined;
+  const price = (variant?.price ?? product.price) ?? 0;
+  return {
+    id: Number(variant?.id ?? product.id) || 0,
+    title: product.title,
+    variantTitle: variant?.title,
+    sku: variant?.sku ?? product.sku,
+    price,
+    discountedPrice: variant?.compareAtPrice ?? product.discountedPrice ?? price,
+    quantity,
+    imgs,
+    productId: String(product.id),
+    variantId: String(variant?.id ?? product.id),
+  };
+}
+
+const SingleItem = ({ item }: { item: WishListItem }) => {
+  const imageSrc = item.imgs?.thumbnails?.[0] ?? item.imgs?.previews?.[0];
+  const productHref = item.slug ? `/products/${item.slug}` : "#";
   const dispatch = useDispatch<AppDispatch>();
+
+  const { data } = useGetProductBySlugQuery(item.slug ?? "", {
+    skip: !item.slug,
+  });
+  const product = data?.product ?? null;
+  const variants = product?.variants ?? [];
+  const [selectedVariant, setSelectedVariant] = useState<BackendVariant | null>(null);
+
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariant) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants, selectedVariant]);
+
+  const activeVariant = selectedVariant ?? variants[0] ?? null;
+  const isAvailable =
+    activeVariant !== null
+      ? activeVariant.available
+      : product
+        ? product.stockStatus !== "out-of-stock"
+        : false;
+  const displayPrice = activeVariant?.price ?? product?.price ?? item.price ?? 0;
+  const displayDiscounted =
+    activeVariant?.compareAtPrice ?? product?.discountedPrice ?? item.discountedPrice ?? displayPrice;
 
   const handleRemoveFromWishlist = () => {
     dispatch(removeItemFromWishlist(item.id));
   };
 
   const handleAddToCart = () => {
+    if (product && activeVariant !== null) {
+      dispatch(
+        addItemToCart(mapVariantToCartItem(product, activeVariant, 1))
+      );
+      return;
+    }
+    if (product && variants.length === 0) {
+      dispatch(
+        addItemToCart(mapVariantToCartItem(product, null, 1))
+      );
+      return;
+    }
     dispatch(
       addItemToCart({
         ...item,
@@ -56,56 +129,110 @@ const SingleItem = ({ item }) => {
       <div className="min-w-[387px]">
         <div className="flex items-center justify-between gap-5">
           <div className="w-full flex items-center gap-5.5">
-            <div className="flex items-center justify-center rounded-[5px] bg-gray-2 max-w-[80px] w-full h-17.5">
-              <Image src={item.imgs?.thumbnails[0]} alt="product" width={200} height={200} />
+            <div className="flex items-center justify-center rounded-[5px] bg-gray-2 max-w-[80px] w-full h-17.5 overflow-hidden">
+              {imageSrc ? (
+                <Image src={imageSrc} alt={item.title} width={200} height={200} />
+              ) : (
+                <div className="w-full h-full min-h-[70px] bg-gray-3 flex items-center justify-center text-dark/50 text-xs">
+                  No image
+                </div>
+              )}
             </div>
 
             <div>
               <h3 className="text-dark ease-out duration-200 hover:text-blue">
-                <a href="#"> {item.title} </a>
+                <Link href={productHref}>{item.title}</Link>
               </h3>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="min-w-[205px]">
-        <p className="text-dark">${item.discountedPrice}</p>
+      <div className="min-w-[220px]">
+        {variants.length > 0 ? (
+          <select
+            value={activeVariant?.sku ?? activeVariant?.id ?? ""}
+            onChange={(e) => {
+              const v = variants.find(
+                (x) => x.sku === e.target.value || String(x.id) === e.target.value
+              );
+              setSelectedVariant(v ?? null);
+            }}
+            className="w-full text-dark border border-gray-3 rounded-md py-2 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue/20 focus:border-blue"
+            aria-label="Chọn biến thể"
+          >
+            {variants.map((v) => (
+              <option key={v.sku} value={v.sku}>
+                {v.title} {v.price != null ? `— $${v.price}` : ""}
+                {!v.available ? " (Hết hàng)" : ""}
+              </option>
+            ))}
+          </select>
+        ) : item.slug ? (
+          <span className="text-dark-4 text-sm">Đang tải…</span>
+        ) : (
+          <span className="text-dark-4 text-sm">—</span>
+        )}
       </div>
 
-      <div className="min-w-[265px]">
-        <div className="flex items-center gap-1.5">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M9.99935 14.7917C10.3445 14.7917 10.6243 14.5119 10.6243 14.1667V9.16669C10.6243 8.82151 10.3445 8.54169 9.99935 8.54169C9.65417 8.54169 9.37435 8.82151 9.37435 9.16669V14.1667C9.37435 14.5119 9.65417 14.7917 9.99935 14.7917Z"
-              fill="#F23030"
-            />
-            <path
-              d="M9.99935 5.83335C10.4596 5.83335 10.8327 6.20645 10.8327 6.66669C10.8327 7.12692 10.4596 7.50002 9.99935 7.50002C9.53911 7.50002 9.16602 7.12692 9.16602 6.66669C9.16602 6.20645 9.53911 5.83335 9.99935 5.83335Z"
-              fill="#F23030"
-            />
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M1.04102 10C1.04102 5.05247 5.0518 1.04169 9.99935 1.04169C14.9469 1.04169 18.9577 5.05247 18.9577 10C18.9577 14.9476 14.9469 18.9584 9.99935 18.9584C5.0518 18.9584 1.04102 14.9476 1.04102 10ZM9.99935 2.29169C5.74215 2.29169 2.29102 5.74283 2.29102 10C2.29102 14.2572 5.74215 17.7084 9.99935 17.7084C14.2565 17.7084 17.7077 14.2572 17.7077 10C17.7077 5.74283 14.2565 2.29169 9.99935 2.29169Z"
-              fill="#F23030"
-            />
-          </svg>
+      <div className="min-w-[120px]">
+        <p className="text-dark">
+          ${typeof displayDiscounted === "number" ? displayDiscounted : displayPrice}
+        </p>
+      </div>
 
-          <span className="text-red"> Out of Stock </span>
+      <div className="min-w-[180px]">
+        <div className="flex items-center gap-1.5">
+          {isAvailable ? (
+            <>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  fill="#22c55e"
+                />
+              </svg>
+              <span className="text-green-600">In Stock</span>
+            </>
+          ) : (
+            <>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M9.99935 14.7917C10.3445 14.7917 10.6243 14.5119 10.6243 14.1667V9.16669C10.6243 8.82151 10.3445 8.54169 9.99935 8.54169C9.65417 8.54169 9.37435 8.82151 9.37435 9.16669V14.1667C9.37435 14.5119 9.65417 14.7917 9.99935 14.7917Z"
+                  fill="#F23030"
+                />
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M1.04102 10C1.04102 5.05247 5.0518 1.04169 9.99935 1.04169C14.9469 1.04169 18.9577 5.05247 18.9577 10C18.9577 14.9476 14.9469 18.9584 9.99935 18.9584C5.0518 18.9584 1.04102 14.9476 1.04102 10ZM9.99935 2.29169C5.74215 2.29169 2.29102 5.74283 2.29102 10C2.29102 14.2572 5.74215 17.7084 9.99935 17.7084C14.2565 17.7084 17.7077 14.2572 17.7077 10C17.7077 5.74283 14.2565 2.29169 9.99935 2.29169Z"
+                  fill="#F23030"
+                />
+              </svg>
+              <span className="text-red">Out of Stock</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="min-w-[150px] flex justify-end">
         <button
-          onClick={() => handleAddToCart()}
-          className="inline-flex text-dark hover:text-white bg-gray-1 border border-gray-3 py-2.5 px-6 rounded-md ease-out duration-200 hover:bg-blue hover:border-gray-3"
+          type="button"
+          onClick={handleAddToCart}
+          disabled={!!item.slug && (product == null || !isAvailable)}
+          className="inline-flex text-dark hover:text-white bg-gray-1 border border-gray-3 py-2.5 px-6 rounded-md ease-out duration-200 hover:bg-blue hover:border-gray-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-1 disabled:hover:text-dark"
         >
           Add to Cart
         </button>

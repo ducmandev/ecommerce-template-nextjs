@@ -19,12 +19,14 @@ const SingleItem = ({ item }: { item: Product }) => {
     dispatch(updateQuickView({ ...item }));
   };
 
-  // add to cart
+  // add to cart (luôn gửi productId, variantId từ item hoặc fallback từ id để API order dùng)
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
         ...item,
         quantity: 1,
+        productId: item.productId ?? String(item.id),
+        variantId: item.variantId ?? String(item.id),
       })
     );
   };
