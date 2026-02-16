@@ -6,6 +6,10 @@ export type Product = {
   price: number;
   discountedPrice: number;
   id: number;
+  /** Backend product ID (string) – dùng cho API order. */
+  productId?: string;
+  /** Backend variant ID (string) – dùng cho API order. */
+  variantId?: string;
   imgs?: {
     thumbnails: string[];
     previews: string[];

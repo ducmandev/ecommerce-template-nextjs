@@ -53,9 +53,11 @@ export function mapShopProductToProduct(raw: ShopProductRaw): Product {
   const price = Number(raw.price) ?? 0;
   const discountedPrice =
     Number(raw.discountedPrice) ?? Number(raw.salePrice) ?? price;
+  const id = typeof raw.id === "string" ? parseInt(raw.id, 10) : raw.id;
+  const idStr = String(raw.id);
   return {
-    id: typeof raw.id === 'string' ? parseInt(raw.id, 10) : raw.id,
-    slug: raw.slug ?? raw.handle ?? String(raw.id),
+    id,
+    slug: raw.slug ?? raw.handle ?? idStr,
     title: raw.title ?? raw.name ?? "Product",
     price,
     discountedPrice,
@@ -64,6 +66,8 @@ export function mapShopProductToProduct(raw: ShopProductRaw): Product {
       thumbnails: [img],
       previews: Array.isArray(raw.images) ? raw.images : [img],
     },
+    productId: idStr,
+    variantId: idStr,
   };
 }
 

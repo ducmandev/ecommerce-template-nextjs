@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useModalContext } from "@/app/context/QuickViewModalContext";
 import { AppDispatch, useAppSelector } from "@/redux/store";
 import { addItemToCart } from "@/redux/features/cart-slice";
+import { addItemToWishlist } from "@/redux/features/wishlist-slice";
 import { useDispatch } from "react-redux";
 import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
@@ -40,6 +41,8 @@ function mapBackendProductToCartItem(
     discountedPrice: price,
     quantity,
     imgs,
+    productId: String(product.id),
+    variantId: String(variant?.id ?? product.id),
   };
 }
 
@@ -146,6 +149,32 @@ const QuickViewModal = () => {
     }
 
     closeModal();
+  };
+
+  // add to wishlist
+  const handleAddToWishlist = () => {
+    const id = Number(selected?.id ?? backendProduct?.id ?? quickProduct?.id) || 0;
+    const imgs =
+      backendProduct?.images?.length || backendProduct?.thumbnails?.length
+        ? {
+            thumbnails: backendProduct?.thumbnails?.length
+              ? backendProduct.thumbnails
+              : backendProduct?.images ?? [],
+            previews: backendProduct?.images ?? [],
+          }
+        : quickProduct?.imgs;
+    dispatch(
+      addItemToWishlist({
+        id,
+        title: displayTitle,
+        price: displayPrice,
+        discountedPrice: compareAt ?? displayPrice,
+        quantity: 1,
+        status: isAvailable ? "available" : "out-of-stock",
+        slug: backendProduct?.slug ?? quickProduct?.slug,
+        imgs,
+      })
+    );
   };
 
   useEffect(() => {
@@ -558,7 +587,9 @@ const QuickViewModal = () => {
                 </button>
 
                 <button
-                  className={`inline-flex items-center gap-2 font-medium text-white bg-dark py-3 px-6 rounded-md ease-out duration-200 hover:bg-opacity-95 `}
+                  type="button"
+                  onClick={() => handleAddToWishlist()}
+                  className="inline-flex items-center gap-2 font-medium text-white bg-dark py-3 px-6 rounded-md ease-out duration-200 hover:bg-opacity-95"
                 >
                   <svg
                     className="fill-current"

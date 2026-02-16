@@ -21,12 +21,14 @@ const ProductItem = ({ item }: { item: Product }) => {
     dispatch(updateQuickView({ ...item }));
   };
 
-  // add to cart
+  // add to cart (productId, variantId từ item để API order lấy từ giỏ)
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
         ...item,
         quantity: 1,
+        productId: item.productId ?? String(item.id),
+        variantId: item.variantId ?? String(item.id),
       })
     );
   };

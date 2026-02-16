@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import Image from "next/image";
@@ -34,6 +34,8 @@ const Checkout = () => {
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paypalPopupOpen, setPaypalPopupOpen] = useState(false);
+  const paypalPopupRef = useRef<Window | null>(null);
 
   // Form validation
   const [formData, setFormData] = useState({
@@ -48,6 +50,15 @@ const Checkout = () => {
     email: "",
     shippingMethod: "free",
     notes: "",
+    // Shipping (different address) - only validated if user fills any field
+    shipFirstName: "",
+    shipLastName: "",
+    shipCompanyName: "",
+    shipAddress: "",
+    shipAddressTwo: "",
+    shipTown: "",
+    shipPhone: "",
+    shipEmail: "",
   });
 
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -59,11 +70,54 @@ const Checkout = () => {
     { number: 3, title: "REVIEW ORDER" },
   ];
 
+  // Check if user has entered any shipping info (then we validate all required shipping fields)
+  const hasAnyShippingInput = () => {
+    const s = formData;
+    return !!(
+      s.shipFirstName?.trim() ||
+      s.shipLastName?.trim() ||
+      s.shipCompanyName?.trim() ||
+      s.shipAddress?.trim() ||
+      s.shipAddressTwo?.trim() ||
+      s.shipTown?.trim() ||
+      s.shipPhone?.trim() ||
+      s.shipEmail?.trim()
+    );
+  };
+
+  // Build address object for API (fullName, phone, line1, line2, city, state, postalCode, country)
+  const buildBillingAddress = () => ({
+    fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+    phone: formData.phone.trim(),
+    line1: formData.address.trim(),
+    line2: formData.addressTwo.trim(),
+    city: formData.town.trim(),
+    state: "",
+    postalCode: "",
+    country: formData.country?.trim() || "Australia",
+  });
+
+  const buildShippingAddress = () => {
+    if (hasAnyShippingInput()) {
+      return {
+        fullName: `${formData.shipFirstName.trim()} ${formData.shipLastName.trim()}`.trim(),
+        phone: formData.shipPhone.trim(),
+        line1: formData.shipAddress.trim(),
+        line2: formData.shipAddressTwo.trim(),
+        city: formData.shipTown.trim(),
+        state: "",
+        postalCode: "",
+        country: formData.country?.trim() || "Australia",
+      };
+    }
+    return buildBillingAddress();
+  };
+
   // Validation function
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
 
-    // Required fields
+    // Required billing fields
     if (!formData.firstName.trim()) {
       errors.firstName = "First name is required";
     }
@@ -87,8 +141,34 @@ const Checkout = () => {
       errors.email = "Please enter a valid email address";
     }
 
+    // Shipping: only validate if user has entered at least one shipping field
+    if (hasAnyShippingInput()) {
+      if (!formData.shipFirstName.trim()) {
+        errors.shipFirstName = "First name is required";
+      }
+      if (!formData.shipLastName.trim()) {
+        errors.shipLastName = "Last name is required";
+      }
+      if (!formData.shipAddress.trim()) {
+        errors.shipAddress = "Street address is required";
+      }
+      if (!formData.shipTown.trim()) {
+        errors.shipTown = "Town/City is required";
+      }
+      if (!formData.shipPhone.trim()) {
+        errors.shipPhone = "Phone number is required";
+      } else if (!/^\+?[\d\s-()]+$/.test(formData.shipPhone)) {
+        errors.shipPhone = "Please enter a valid phone number";
+      }
+      if (!formData.shipEmail.trim()) {
+        errors.shipEmail = "Email address is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.shipEmail)) {
+        errors.shipEmail = "Please enter a valid email address";
+      }
+    }
+
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return Object.keys(errors).length === 0 ? true : { errors };
   };
 
   // Handle form input changes
@@ -129,46 +209,135 @@ const Checkout = () => {
       return;
     }
 
+    // productId và variantSku (mã SKU variant) lấy từ giỏ hàng
+    const itemsInvalid = cartItems.filter(
+      (item) => !item.productId || !item.sku?.trim()
+    );
+    if (itemsInvalid.length > 0) {
+      alert(
+        "Một số sản phẩm trong giỏ chưa có thông tin product/SKU. Vui lòng xóa và thêm lại từ trang chi tiết sản phẩm."
+      );
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      // Create order in backend
-      const response = await fetch('/api/orders/create', {
-        method: 'POST',
+      const payload = {
+        items: cartItems.map((item) => ({
+          productId: item.productId as string,
+          variantSku: item.sku!.trim(),
+          quantity: item.quantity,
+        })),
+        shippingAddress: buildShippingAddress(),
+        billingAddress: buildBillingAddress(),
+        paymentMethod,
+        notes: formData.notes?.trim() || "",
+      };
+
+      const response = await fetch("/api/orders/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          paymentMethod,
-          items: cartItems.map(item => ({
-            productId: item.id,
-            title: item.title,
-            quantity: item.quantity,
-            unitPrice: item.discountedPrice,
-          })),
-          subtotal,
-          shippingFee: SHIPPING_FEE,
-          total,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create order');
+        throw new Error(data.error || "Failed to create order");
       }
 
-      setOrderId(data.orderId);
+      const ourOrderId = data.order?.orderId ?? data.orderId;
+      setOrderId(ourOrderId);
       setOrderCreated(true);
 
-      // Auto move to Step 2 after order created (for PayPal and Bank)
-      if (paymentMethod === 'paypal' || paymentMethod === 'bank') {
+      if (paymentMethod === "paypal") {
+        const payRes = await fetch("/api/orders/create-paypal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: ourOrderId }),
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok) {
+          throw new Error(payData.error || "Failed to create PayPal session");
+        }
+        if (payData.approvalLink) {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("paypalPendingOrderId", ourOrderId);
+            if (payData.orderId) {
+              sessionStorage.setItem("paypalOrderIdFromCreate", payData.orderId);
+            }
+          }
+          const popup = window.open(
+            payData.approvalLink,
+            "paypal_approval",
+            "width=500,height=600,scrollbars=yes,resizable=yes,left=100,top=100"
+          );
+          if (!popup) {
+            alert("Trình duyệt đã chặn popup. Vui lòng cho phép popup và thử lại.");
+            return;
+          }
+          paypalPopupRef.current = popup;
+          setCurrentStep(2);
+          setPaypalPopupOpen(true);
+          const timer = setInterval(async () => {
+            if (!paypalPopupRef.current?.closed) return;
+            clearInterval(timer);
+            const pendingOrderId =
+              typeof window !== "undefined"
+                ? sessionStorage.getItem("paypalPendingOrderId")
+                : null;
+            paypalPopupRef.current = null;
+            setPaypalPopupOpen(false);
+
+            if (pendingOrderId) {
+              const payPalOrderIdFromCreate =
+                typeof window !== "undefined"
+                  ? sessionStorage.getItem("paypalOrderIdFromCreate")
+                  : null;
+              try {
+                const res = await fetch("/api/orders/capture-paypal", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orderId: pendingOrderId,
+                    payPalOrderId: payPalOrderIdFromCreate || "",
+                  }),
+                });
+                const data = await res.json();
+                if (res.ok && (data.success || data.status === "completed")) {
+                  sessionStorage.removeItem("paypalPendingOrderId");
+                  sessionStorage.removeItem("paypalOrderIdFromCreate");
+                  dispatch(removeAllItemsFromCart());
+                  // const transactionId = data.transactionId || "";
+                  router.push(
+                    `/order-success?orderId=${encodeURIComponent(pendingOrderId)}`
+                  );
+                } else {
+                  sessionStorage.removeItem("paypalOrderIdFromCreate");
+                  setCurrentStep(1);
+                }
+              } catch {
+                sessionStorage.removeItem("paypalOrderIdFromCreate");
+                setCurrentStep(1);
+              }
+            } else {
+              setCurrentStep(1);
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      if (paymentMethod === "paypal" || paymentMethod === "bank") {
         setCurrentStep(2);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      alert(error.message || 'Failed to create order. Please try again.');
+      console.error("Checkout error:", error);
+      alert(error.message || "Failed to create order. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -186,12 +355,48 @@ const Checkout = () => {
     
     // After 2 seconds, redirect to success page
     setTimeout(() => {
-      router.push(`/order-success?orderId=${orderId}&transactionId=${details.transactionId}`);
+      router.push(`/order-success?orderId=${orderId}`);
     }, 2000);
   }, [dispatch, orderId, router]);
 
+  // Lắng nghe message từ popup PayPal (success -> chuyển order-success; cancel -> giữ step 1)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.type === "PAYPAL_SUCCESS" && data?.orderId) {
+        dispatch(removeAllItemsFromCart());
+        // const transactionId = data.transactionId || "";
+        setPaypalPopupOpen(false);
+        router.push(
+          `/order-success?orderId=${encodeURIComponent(data.orderId)}`
+        );
+      }
+      if (data?.type === "PAYPAL_CANCEL") {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("paypalOrderIdFromCreate");
+        }
+        setCurrentStep(1);
+        setPaypalPopupOpen(false);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [dispatch, router]);
+
   return (
     <>
+      {/* Loading overlay khi popup PayPal đang mở */}
+      {paypalPopupOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-dark/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 text-white">
+            <div className="animate-spin rounded-full h-14 w-14 border-4 border-white border-t-transparent" />
+            <p className="font-medium">Đang chờ thanh toán PayPal...</p>
+            <p className="text-sm text-white/80">Hoàn tất thanh toán trong cửa sổ popup</p>
+          </div>
+        </div>
+      )}
+
       <Breadcrumb title={"Checkout"} pages={["checkout"]} />
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -398,6 +603,13 @@ const Checkout = () => {
                           )}
                         </div>
                       </div>
+                      <Shipping
+                        formData={formData}
+                        formErrors={formErrors}
+                        showErrors={showErrors}
+                        onInputChange={handleInputChange}
+                        forceExpand={showErrors && Object.keys(formErrors).some((k) => k.startsWith("ship"))}
+                      />
                     </div>
                     
                     <PaymentMethod selected={paymentMethod} onChange={setPaymentMethod} />
@@ -423,11 +635,10 @@ const Checkout = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          // Validate form first
                           setShowErrors(true);
-                          if (!validateForm()) {
-                            // Scroll to first error
-                            const firstErrorField = Object.keys(formErrors)[0];
+                          const result = validateForm();
+                          if (result !== true) {
+                            const firstErrorField = Object.keys(result.errors)[0];
                             const element = document.getElementById(firstErrorField);
                             if (element) {
                               element.scrollIntoView({ behavior: 'smooth', block: 'center' });

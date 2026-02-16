@@ -7,7 +7,7 @@ interface PaymentMethodProps {
 }
 
 const PaymentMethod: React.FC<PaymentMethodProps> = ({ 
-  selected = "bank",
+  selected = "paypal",
   onChange 
 }) => {
   const [payment, setPayment] = useState(selected);
@@ -18,12 +18,19 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
   };
 
   const paymentMethods = [
+    // {
+    //   id: 'bank',
+    //   name: 'Direct bank transfer',
+    //   icon: '/images/checkout/bank.svg',
+    //   iconWidth: 29,
+    //   iconHeight: 12,
+    // },
     {
-      id: 'bank',
-      name: 'Direct bank transfer',
-      icon: '/images/checkout/bank.svg',
-      iconWidth: 29,
-      iconHeight: 12,
+      id: 'paypal',
+      name: 'PayPal',
+      icon: '/images/checkout/paypal.svg',
+      iconWidth: 75,
+      iconHeight: 20,
     },
     {
       id: 'cash',
@@ -32,13 +39,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       iconWidth: 21,
       iconHeight: 21,
     },
-    {
-      id: 'paypal',
-      name: 'PayPal',
-      icon: '/images/checkout/paypal.svg',
-      iconWidth: 75,
-      iconHeight: 20,
-    },
+
   ];
 
   return (
