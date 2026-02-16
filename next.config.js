@@ -10,6 +10,7 @@ const nextConfig = {
   },
   // Empty turbopack config để tương thích với Next.js 16
   turbopack: {},
+  output: "standalone",
 };
 
 module.exports = nextConfig;
