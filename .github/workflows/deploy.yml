@@ -1,28 +1,47 @@
-#!/bin/bash
+name: Deploy with Docker Script
 
-# Script to run Docker with different environments
-# Usage: ./run_docker.sh [dev|uat|prod]
+on:
+  workflow_dispatch:
+    inputs:
+      env_target:
+        description: 'Chọn môi trường để deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
 
-ENV_MODE=${1:-dev}
+jobs:
+  deploy:
+    runs-on: self-hosted
 
-if [ "$ENV_MODE" = "prod" ]; then
-    echo "Starting in PRODUCTION mode..."
-    export NODE_ENV=production
-elif [ "$ENV_MODE" = "uat" ]; then
-    echo "Starting in UAT mode..."
-    # UAT usually runs as a production build but might use different API endpoints
-    export NODE_ENV=production
-    export APP_ENV=uat
-else
-    echo "Starting in DEVELOPMENT mode..."
-    # Note: The current Dockerfile is a multi-stage build optimized for production.
-    # Running with NODE_ENV=development might require a different Dockerfile or target for true dev experience (hot-reload).
-    # For now, we set it to development to load dev configs if any.
-    export NODE_ENV=development
-fi
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-echo "Application is running with NODE_ENV: $NODE_ENV"
+      - name: Generate .env file
+        run: |
+          # BƯỚC QUAN TRỌNG: Tạo file .env động từ GitHub Secrets
+          touch .env
+          echo "API_BASE_URL=${{ secrets.API_BASE_URL }}" >> .env
+          echo "NEXT_PUBLIC_PAYPAL_CLIENT_ID=${{ secrets.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}" >> .env
+          
 
-# Run docker compose
-# We use --build to ensure changes are picked up and --force-recreate to ensure env vars are applied
-docker compose up -d --build --force-recreate
+      - name: Make script executable
+        run: chmod +x ./run_docker.sh 
+
+      - name: Run Docker Deployment
+        run: |
+          # Lấy giá trị môi trường người dùng chọn (dev hoặc prod)
+          TARGET="${{ inputs.env_target }}"
+          echo "Bắt đầu deploy cho môi trường: $TARGET"
+          
+          # Chạy script deploy
+          ./run_docker.sh $TARGET 
+
+      - name: Clean up .env
+        if: always() 
+        run: |
+          # BƯỚC BẢO MẬT: Luôn luôn xóa file .env sau khi chạy xong
+          rm -f .env
